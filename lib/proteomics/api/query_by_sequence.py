@@ -5,12 +5,12 @@ usage: query_by_sequence.py [--max-distance=0] sequence_file
 
 commissioned by : Dr. Makoto Saito, 2013-03
 
-authorship: adorsk, 2013-05
+authorship: adorsk, 2013-05 modified for api by dgaylord 2016-12
 
 description: This script queries a peptides database for the given set of
 peptide sequences.
 
-Outputs: a CSV document to stdout whose rows contains:
+Outputs: a JSON file containing
     query_sequence | taxon_id | levenshtein_distance | match_sequence
 """
 
@@ -18,11 +18,8 @@ Outputs: a CSV document to stdout whose rows contains:
 Imports and setup.
 """
 from proteomics import db
-from proteomics import config
 from proteomics.models import (Peptide, TaxonDigestPeptide, TaxonDigest)
-import argparse
 import logging
-import os
 from sqlalchemy.sql import func
 from flask import Flask, request
 from flask_restful import Resource, Api
