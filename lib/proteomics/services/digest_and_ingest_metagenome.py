@@ -1,6 +1,6 @@
-from proteomics.models import (Taxon, Protein, 
-                               TaxonProtein, ProteinDigest, Peptide, 
-                               ProteinDigestPeptide, TaxonDigestPeptide, 
+from proteomics.models import (Taxon, Protein,
+                               TaxonProtein, ProteinDigest, Peptide,
+                               ProteinDigestPeptide, TaxonDigestPeptide,
                                TaxonDigest, Digest, Protease)
 from proteomics import db
 from proteomics.util.digest import cleave
@@ -16,8 +16,9 @@ from collections import defaultdict
 from datetime import datetime
 import time
 
+
 class DigestAndIngestTask(object):
-    def __init__(self, logger=logging.getLogger(), fasta_paths=[], 
+    def __init__(self, logger=logging.getLogger(), fasta_paths=[],
                  digest=None, get_connection=None, **kwargs):
         self.logger = logger
         self.fasta_paths = fasta_paths
@@ -29,7 +30,6 @@ class DigestAndIngestTask(object):
         # Get session.
         self.session = db.get_session(bind=self.get_connection())
         self.digest = self.session.merge(self.digest)
-
 
         # Initialize stats dict.
         self.stats = defaultdict(int)
@@ -52,11 +52,11 @@ class DigestAndIngestTask(object):
         # Get taxon object from db or create a new one.
         taxon = self.session.query(Taxon).get(taxon_id)
 
-      #  cur = db.get_psycopg2_cursor();
-      #  cur.execute("select t.id from Taxon t where t.id = %s;", (taxon_id,))
-      #  taxon_results = cur.fetchone()
-      #  db.psycopg2_connection.commit()
-      #  file_logger.info("Taxon Results '%s'" % taxon_results)
+        #  cur = db.get_psycopg2_cursor();
+        #  cur.execute("select t.id from Taxon t where t.id = %s;", (taxon_id,))
+        #  taxon_results = cur.fetchone()
+        #  db.psycopg2_connection.commit()
+        #  file_logger.info("Taxon Results '%s'" % taxon_results)
         if not taxon:
             taxon = Taxon(id=taxon_id)
             self.session.add(taxon)
@@ -202,27 +202,23 @@ class DigestAndIngestTask(object):
             if sequence not in existing_proteins:
                 try:
                     mass = get_aa_sequence_mass(sequence)
-                    #protein = Protein(sequence=sequence, mass=mass)
-
                 except Exception as e:
                     logger.exception("Error processing protein, skipping")
                     continue
-                #self.session.add(protein)
                 num_new_proteins += 1
+                # add sequence and mass to their respective lists to be passed to postgres stored procedure
                 if (sequence not in protein_sequences):
                     protein_sequences.append(sequence)
                     protein_masses.append(mass)
-                #undigested_proteins[sequence] = protein
-                #existing_proteins[sequence] = protein
+
         logger.info("creating %s new proteins..." % (
             num_new_proteins))
-        cur = db.get_psycopg2_cursor();
+        cur = db.get_psycopg2_cursor()
         cur.execute("select * from protein_insert(%s, %s);", (protein_sequences, protein_masses))
-     #   all_records = cur.fetchall()
+        # iterate through the protein records returned from the insert and build a protein object
         for record in cur:
             try:
-                protein = Protein(id=record[0],sequence=record[1], mass=record[2])
-
+                protein = Protein(id=record[0], sequence=record[1], mass=record[2])
             except Exception as e:
                 logger.exception("Error processing protein, skipping")
                 continue
@@ -255,7 +251,7 @@ class DigestAndIngestTask(object):
                     max_acids=self.digest.max_acids,
                 )
                 peptide_counter += len(peptide_sequences)
-                undigested_batch[protein] = {
+                undigested_batch[protein.id] = {
                     'peptide_sequences': peptide_sequences,
                     'protein_digest': protein_digest,
                 }
@@ -291,27 +287,39 @@ class DigestAndIngestTask(object):
 
         # Assemble combined peptide sequences and protein digests.
         combined_peptide_sequences = set()
-        combined_protein_digests = []
+
         protein_ids = []
+        digest_ids = []
         protein_digests = []
-        for protein, data in batch.items():
+        protein_digests_dict = {}
+        for proteinId, data in batch.items():
             for sequence in data['peptide_sequences']:
                 combined_peptide_sequences.add(sequence)
-            combined_protein_digests.append(data['protein_digest'])
+
             pd = data['protein_digest']
             protein_ids.append(pd.protein.id)
-            protein_digests.append(pd.digest.id)
+            digest_ids.append(pd.digest.id)
 
-        # Add protein digests to db.
-        logger.info("Creating %s new protein digests..." % (
-            len(combined_protein_digests)))
-        #self.session.add_all(combined_protein_digests)
-        #self.session.commit()
-        cur = db.get_psycopg2_cursor();
-        cur.execute("select * from protein_digest_insert(%s, %s);", (protein_ids, protein_digests))
+        cur = db.get_psycopg2_cursor()
+        cur.execute("select * from protein_digest_insert(%s, %s);", (protein_ids, digest_ids))
+        # iterate through the protein_digest records returned from the insert and build a protein_digest object
+        for record in cur:
+
+                try:
+                    protein_digest = ProteinDigest(id=record[0], protein=record[1], digest=record[2])
+
+                    protein_digests.append(protein_digest)
+                    batch_record = batch.get(record[1])
+                    protein_digests_dict[record[1]] = {
+                        'peptide_sequences': batch_record['peptide_sequences'],
+                        'protein_digest': protein_digest,
+                    }
+                except Exception as e:
+                    logger.exception("Error processing protein digest, skipping")
+                    continue
 
         db.psycopg2_connection.commit()
-        self.stats['ProteinDigest'] += len(combined_protein_digests)
+        self.stats['ProteinDigest'] += len(protein_digests)
 
         # Get existing peptides.
         existing_peptides = {}
@@ -344,14 +352,13 @@ class DigestAndIngestTask(object):
                 peptide_sequences.append(sequence)
                 peptide_masses.append(mass)
         logger.info("Creating %s new peptides..." % num_new_peptides)
-        cur = db.get_psycopg2_cursor();
+        cur = db.get_psycopg2_cursor()
         cur.execute("select peptide_insert(%s, %s);", (peptide_sequences, peptide_masses))
 
         db.psycopg2_connection.commit()
         total_time = time.time() - start_time
         logger.info("peptide time elapsed: %s" % (total_time))
-        #self.session.execute(db.tables['Peptide'].insert(), peptide_dicts)
-        #self.session.commit()
+
         self.stats['Peptide'] += num_new_peptides
 
         # Get newly created peptide objects and add to existing peptides.
@@ -369,7 +376,10 @@ class DigestAndIngestTask(object):
 
         # Create histogram of peptide sequence occurences for each protein.
         num_peptide_instances = 0
-        for protein, data in batch.items():
+        logger.info("%s batch..." % (
+            len(batch)))
+        #for protein, data in batch.items():
+        for proteinId, data in protein_digests_dict.items():
             peptides_histogram = defaultdict(int)
             for sequence in data['peptide_sequences']:
                 peptides_histogram[sequence] += 1
@@ -380,36 +390,31 @@ class DigestAndIngestTask(object):
         # Create protein digest peptide instances in bulk.
         logger.info("Creating %s new protein digest peptides..." % (
             num_peptide_instances))
+
         start_time = time.time()
         pdp_batch = []
         pdp_peptide_ids = []
         pdp_protein_digest_ids = []
         pdp_peptide_count = []
         pdp_counter = 0
-        for protein, data in batch.items():
+        for proteinId, data in protein_digests_dict.items():
             for sequence, count in data['peptide_histogram'].items():
                 pdp_counter += 1
                 peptide = existing_peptides[sequence]
-                pdp_batch.append({
-                    'peptide_id': peptide.id,
-                    'protein_digest_id': data['protein_digest'].id,
-                    'count': count,
-                })
                 pdp_peptide_ids.append(peptide.id)
                 pdp_protein_digest_ids.append(data['protein_digest'].id)
                 pdp_peptide_count.append(count)
-                if (pdp_counter % 1e4) == 0:
-                    #self.session.execute(
-                    #    db.tables['ProteinDigestPeptide'].insert(),
-                    #    pdp_batch)
-                    #self.session.commit()
-                    cur = db.get_psycopg2_cursor();
-                    cur.execute("select protein_peptide_digest_insert(%s, %s, %s);", (pdp_peptide_ids, pdp_protein_digest_ids, pdp_peptide_count))
-                    db.psycopg2_connection.commit()
-        #self.session.execute(
-        #    db.tables['ProteinDigestPeptide'].insert(), pdp_batch)
-        #self.session.commit()
-        cur = db.get_psycopg2_cursor();
+                #if (pdp_counter % 1e4) == 0:
+                #      cur = db.get_psycopg2_cursor();
+                #      cur.execute("select protein_digest_peptide_insert(%s, %s, %s);", (pdp_peptide_ids, pdp_protein_digest_ids, pdp_peptide_count))
+                #      db.psycopg2_connection.commit()
+        logger.info(" %s pdp_peptide_ids..." % (
+            len(pdp_peptide_ids)))
+        logger.info(" %s pdp_protein_digest_ids,..." % (
+            len(pdp_protein_digest_ids,)))
+        logger.info(" %s pdp_peptide_count..." % (
+            len(pdp_peptide_count)))
+        cur = db.get_psycopg2_cursor()
         cur.execute("select protein_digest_peptide_insert(%s, %s, %s);",
                     (pdp_peptide_ids, pdp_protein_digest_ids, pdp_peptide_count))
         db.psycopg2_connection.commit()
@@ -445,10 +450,10 @@ class DigestAndIngestTask(object):
             taxon_digest_ids.append(taxon_digest.id)
             pepdide_ids.append(row[0])
             peptide_count.append(row[1])
-       # self.session.execute(db.tables['TaxonDigestPeptide'].insert(),
+            # self.session.execute(db.tables['TaxonDigestPeptide'].insert(),
         #                     dicts)
-        #self.session.commit()
-        cur = db.get_psycopg2_cursor();
+        # self.session.commit()
+        cur = db.get_psycopg2_cursor()
         cur.execute("select taxon_digest_peptide_insert(%s, %s, %s);",
                     (pepdide_ids, taxon_digest_ids, peptide_count))
         db.psycopg2_connection.commit()
