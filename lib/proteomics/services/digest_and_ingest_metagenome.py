@@ -10,8 +10,7 @@ from proteomics.util import fasta
 import os
 import hashlib
 import logging
-from sqlalchemy.orm import sessionmaker
-from sqlalchemy.sql import func
+
 from collections import defaultdict
 from datetime import datetime
 import time
@@ -55,9 +54,10 @@ class DigestAndIngestTask(object):
         cur = db.get_psycopg2_cursor();
         cur.execute("select t.id from taxon t where t.id = %s;", (taxon_id,))
         taxon_result = cur.fetchone()
+        db.psycopg2_connection.commit()
         if taxon_result is None:
             #add a taxon to the DB
-            db.psycopg2_connection.commit()
+
             #  file_logger.info("Taxon Results '%s'" % taxon_results)
             cur.execute("insert into taxon (id) values(%s);", (taxon_id,))
             db.psycopg2_connection.commit()
@@ -66,6 +66,7 @@ class DigestAndIngestTask(object):
 
         # Check if TaxonDigest record exists in db.
         cur.execute("select t.id from taxon_digest t where t.taxon_id = %s and t.digest_id = %s;", (taxon_id,self.digest.id,))
+        db.psycopg2_connection.commit()
         taxon_digest_result = cur.fetchone()
         taxon_digest = TaxonDigest(taxon=taxon, digest=self.digest)
         if taxon_digest_result:
@@ -149,39 +150,33 @@ class DigestAndIngestTask(object):
             logger = self.logger
         # Get existing proteins by searching for sequences.
         existing_proteins = {}
-
-        # for protein in (
-        #         self.session.query(Protein)
-        #                 .filter(Protein.sequence.in_(
-        #             [sequence for metadata, sequence in batch])
-        #         )
-        # ):
-        #     existing_proteins[protein.sequence] = proteinNQNEFNYAIQLVSKAVASRPTHPILANLLLTADQGTNKISLTGFDLNLGIQTSFDATVNKSGAITIPSKLLSEIVNKLPSETPVSLDVDESSDNILIKSDRGSFNIKGIPSDDYPSLPFVESGTSLNIDP
+        existing_protein_ids = []
         cur = db.get_psycopg2_cursor()
         sequences = []
         for metadata, sequence in batch:
             sequences.append(sequence)
 
-        cur.execute("select * from protein where protein.sequence in %s", (tuple(sequences),)) #fix this statement, not making list properly
+        cur.execute("select * from protein where protein.sequence in %s", (tuple(sequences),))
 
         for record in cur.fetchall():
             protein = Protein(id=record[0], sequence=record[1], mass=record[2])
             existing_proteins[protein.sequence] = protein
+            existing_protein_ids.append(record[0]);
 
         # Initialize collection of undigested proteins.
         undigested_proteins = {}
         digested_proteins = {}
         protein_sequences = []
         protein_masses = []
+        #testing now, convert to stored procedure
         if existing_proteins:
-            for protein in (
-                    self.session.query(Protein)
-                            .filter(Protein.id.in_(
-                        [protein.id for protein in existing_proteins.values()]))
-                            .join(ProteinDigest)
-                            .filter(ProteinDigest.digest == self.digest)
-            ):
+            cur.execute("select * from protein join protein_digest on protein.id = protein_digest.protein_id where protein.id in %s and protein_digest.digest_id = %s", ( tuple(existing_protein_ids), self.digest.id,))
+
+            for record in cur.fetchall():
+                protein = Protein(id=record[0], sequence=record[1], mass=record[2])
                 digested_proteins[protein.sequence] = protein
+
+
         for protein in existing_proteins.values():
             if protein.sequence not in digested_proteins:
                 undigested_proteins[protein.sequence] = protein
@@ -416,10 +411,13 @@ class DigestAndIngestTask(object):
     def update_existing_peptides_(self, sequences, existing_peptides):
         if not sequences:
             return
-        for peptide in (
-                self.session.query(Peptide).filter(Peptide.sequence.in_(sequences))
-        ):
+
+        cur = db.get_psycopg2_cursor()
+        cur.execute("select * from peptide where peptide.sequence in %s", (tuple(sequences),))
+        for record in cur.fetchall():
+            peptide = Peptide(id=record[0], sequence=record[1], mass=record[2])
             existing_peptides[peptide.sequence] = peptide
+        db.psycopg2_connection.commit()
 
     def process_taxon_digest_peptide_batch(self, taxon_digest, batch,
                                            logger=None):
