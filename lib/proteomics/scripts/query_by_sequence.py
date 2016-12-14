@@ -23,7 +23,7 @@ from proteomics.models import (Peptide, TaxonDigestPeptide, TaxonDigest)
 import argparse
 import logging
 import os
-from sqlalchemy.sql import func
+
 
 """
 Process arguments.
@@ -75,6 +75,7 @@ def main():
 
     # Read in sequences to query.
     sequences = []
+    max_dist =   lev_dist = args.max_distance
     if args.sequence_file:
         with open(args.sequence_file, 'rb') as f:
             sequences = [line.strip() for line in f.readlines()]
@@ -91,17 +92,13 @@ def main():
 
     # Execute query for each sequence and print results.
     for seq in sequences:
-        lev_dist = func.levenshtein(Peptide.sequence, seq)
-        q = (session.query(TaxonDigest.taxon_id, lev_dist,
-                           Peptide.sequence)
-             .select_from(Peptide)
-             .join(TaxonDigestPeptide)
-             .join(TaxonDigest)
-             .filter(lev_dist <= args.max_distance)
-            )
 
-        for row in q:
+        cur = db.get_psycopg2_cursor();
+
+        cur.execute("select * from query_by_peptide_sequence(%s, %s);", (seq, max_dist))
+
+        for row in cur.fetchall():
             print ','.join([str(s) for s in [seq] + list(row)])
-
+        db.psycopg2_connection.commit()
 if __name__ == '__main__':
     main()
