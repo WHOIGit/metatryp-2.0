@@ -85,7 +85,7 @@ def main():
         argparser.error("Provide a query sequence via the '--sequence' option, "
                         "or a set of sequences via the --sequence-file option")
 
-    # Print headers. 
+    # Print headers.
     headers = ['query', 'taxon', 'lev_distance', 'match']
     print ','.join(headers)
 
@@ -99,6 +99,7 @@ def main():
              .join(TaxonDigest)
              .filter(lev_dist <= args.max_distance)
             )
+
         for row in q:
             print ','.join([str(s) for s in [seq] + list(row)])
 

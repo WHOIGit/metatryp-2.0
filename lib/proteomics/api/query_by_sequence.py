@@ -31,7 +31,7 @@ class QueryBySequence(Resource):
         logger = logging.getLogger('query_by_sequence')
         logger.addHandler(logging.StreamHandler())
         logger.setLevel(logging.INFO)
-
+        logger.info('in query')
         # Define levenshtein function in SQLite.
         try:
             def levenshtein(s1,s2):
@@ -84,7 +84,7 @@ class QueryBySequence(Resource):
         results = {
             "results": []
         }
-
+        data ={}
         for seq in sequences:
             data = {"search_sequence":seq}
 
@@ -102,6 +102,7 @@ class QueryBySequence(Resource):
                 data["match"] = row[2]
 
         results["results"].append(data)
+        logger.info('returning %s' % results)
         return results
 
 

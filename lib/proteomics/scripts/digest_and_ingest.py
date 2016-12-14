@@ -25,6 +25,7 @@ from proteomics.services.digest_and_ingest import DigestAndIngestTask
 import argparse
 import logging
 import json
+import time
 
 """
 Process arguments.
@@ -40,6 +41,7 @@ argparser.add_argument('fasta_files', nargs='+',
 Main method.
 """
 def main():
+    start_time = time.time()
     args = argparser.parse_args()
 
     logger = logging.getLogger('digest_and_ingest')
@@ -71,6 +73,8 @@ def main():
     )
     stats = task.run()
     logger.info("Statistics on records created: %s" % stats)
+    total_time = time.time() - start_time
+    logger.info("total run time: %s" % (total_time))
 
 """ Helper methods. """
 def get_digest(logger, digest_def):

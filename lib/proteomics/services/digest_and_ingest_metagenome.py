@@ -50,40 +50,36 @@ class DigestAndIngestTask(object):
         taxon_id = os.path.splitext(os.path.basename(path))[0]
 
         # Get taxon object from db or create a new one.
-        taxon = self.session.query(Taxon).get(taxon_id)
-
-        #  cur = db.get_psycopg2_cursor();
-        #  cur.execute("select t.id from Taxon t where t.id = %s;", (taxon_id,))
-        #  taxon_results = cur.fetchone()
-        #  db.psycopg2_connection.commit()
-        #  file_logger.info("Taxon Results '%s'" % taxon_results)
-        if not taxon:
-            taxon = Taxon(id=taxon_id)
-            self.session.add(taxon)
-            self.session.commit()
+        #taxon = self.session.query(Taxon).get(taxon_id)
+        taxon = Taxon(id=taxon_id)
+        cur = db.get_psycopg2_cursor();
+        cur.execute("select t.id from taxon t where t.id = %s;", (taxon_id,))
+        taxon_result = cur.fetchone()
+        if taxon_result is None:
+            #add a taxon to the DB
+            db.psycopg2_connection.commit()
+            #  file_logger.info("Taxon Results '%s'" % taxon_results)
+            cur.execute("insert into taxon (id) values(%s);", (taxon_id,))
+            db.psycopg2_connection.commit()
             self.stats['Taxon'] += 1
             file_logger.info("Created taxon '%s'" % taxon_id)
 
         # Check if TaxonDigest record exists in db.
-        taxon_digest = (
-            self.session.query(TaxonDigest)
-                .filter(TaxonDigest.taxon == taxon)
-                .filter(TaxonDigest.digest == self.digest)
-        ).first()
-
+        cur.execute("select t.id from taxon_digest t where t.taxon_id = %s and t.digest_id = %s;", (taxon_id,self.digest.id,))
+        taxon_digest_result = cur.fetchone()
+        taxon_digest = TaxonDigest(taxon=taxon, digest=self.digest)
+        if taxon_digest_result:
         # If digest has been run on this taxon, don't do anything.
-        if taxon_digest:
+        #if taxon_digest:
             file_logger.info((
                                  "Taxon '%s' has already been digested with"
                                  " digest '%s', skipping."
                              ) % (taxon_id, self.digest))
             return
-
-        # Otherwise create a new TaxonDigest.
-        if not taxon_digest:
-            taxon_digest = TaxonDigest(taxon=taxon, digest=self.digest)
-            self.session.add(taxon_digest)
-            self.session.commit()
+        else:
+            # Otherwise create a new TaxonDigest.
+            cur.execute("insert into taxon_digest (taxon_id, digest_id) values(%s,%s);", (taxon_digest.taxon.id,taxon_digest.digest.id,))
+            db.psycopg2_connection.commit()
             self.stats['TaxonDigest'] += 1
 
         # Process protein sequences in batches.
@@ -116,28 +112,14 @@ class DigestAndIngestTask(object):
         self.process_protein_batch(
             batch, taxon, logger=protein_logger)
 
-        # Generate TaxonDigestPeptides
-        q = (
-            self.session.query(
-                Peptide.id,
-                func.sum(ProteinDigestPeptide.count)
-            )
-                .select_from(Peptide)
-                .join(ProteinDigestPeptide)
-                .join(ProteinDigest)
-                .join(Digest)
-                .join(Protein)
-                .join(TaxonProtein)
-                .join(Taxon)
-                .filter(Taxon.id == taxon.id)
-                .filter(Digest.id == self.digest.id)
-                .group_by(Peptide.id)
-        )
-
         batch_size = 1e4
+        cur = db.get_psycopg2_cursor();
+        cur.execute("select * from get_peptide_count(%s, %s);", (self.digest.id, taxon.id,))
+
+
         tdp_batch = []
         tdp_counter = 0
-        for row in db.get_batched_results(q, batch_size):
+        for row in cur.fetchall():
             tdp_counter += 1
             tdp_batch.append(row)
             if (tdp_counter % batch_size) == 0:
@@ -167,12 +149,23 @@ class DigestAndIngestTask(object):
             logger = self.logger
         # Get existing proteins by searching for sequences.
         existing_proteins = {}
-        for protein in (
-                self.session.query(Protein)
-                        .filter(Protein.sequence.in_(
-                    [sequence for metadata, sequence in batch])
-                )
-        ):
+
+        # for protein in (
+        #         self.session.query(Protein)
+        #                 .filter(Protein.sequence.in_(
+        #             [sequence for metadata, sequence in batch])
+        #         )
+        # ):
+        #     existing_proteins[protein.sequence] = proteinNQNEFNYAIQLVSKAVASRPTHPILANLLLTADQGTNKISLTGFDLNLGIQTSFDATVNKSGAITIPSKLLSEIVNKLPSETPVSLDVDESSDNILIKSDRGSFNIKGIPSDDYPSLPFVESGTSLNIDP
+        cur = db.get_psycopg2_cursor()
+        sequences = []
+        for metadata, sequence in batch:
+            sequences.append(sequence)
+
+        cur.execute("select * from protein where protein.sequence in %s", (tuple(sequences),)) #fix this statement, not making list properly
+
+        for record in cur.fetchall():
+            protein = Protein(id=record[0], sequence=record[1], mass=record[2])
             existing_proteins[protein.sequence] = protein
 
         # Initialize collection of undigested proteins.
@@ -222,7 +215,6 @@ class DigestAndIngestTask(object):
             except Exception as e:
                 logger.exception("Error processing protein, skipping")
                 continue
-            # self.session.add(protein)
             undigested_proteins[record[1]] = protein
             existing_proteins[record[1]] = protein
 
@@ -262,6 +254,11 @@ class DigestAndIngestTask(object):
 
         # Create taxon protein instances in bulk.
         taxon_protein_dicts = []
+
+        taxon_protein_ids = []
+        taxon_ids = []
+        metadatas = []
+
         for metadata, sequence in batch:
             try:
                 protein = existing_proteins[sequence]
@@ -274,11 +271,16 @@ class DigestAndIngestTask(object):
                 'taxon_id': taxon.id,
                 'metadata': metadata,
             })
+            taxon_protein_ids.append(protein.id)
+            taxon_ids.append(taxon.id)
+            metadatas.append(metadata)
         logger.info("Creating %s new taxon proteins..." % (
             len(taxon_protein_dicts)))
-        self.session.execute(
-            db.tables['TaxonProtein'].insert(), taxon_protein_dicts)
-        self.session.commit()
+
+        cur = db.get_psycopg2_cursor()
+        cur.execute("select * from taxon_protein_insert(%s, %s, %s);", (taxon_protein_ids, taxon_ids, metadatas))
+        db.psycopg2_connection.commit()
+
         self.stats['TaxonProtein'] += len(taxon_protein_dicts)
 
     def process_peptide_batch(self, batch, logger=None):
@@ -376,9 +378,7 @@ class DigestAndIngestTask(object):
 
         # Create histogram of peptide sequence occurences for each protein.
         num_peptide_instances = 0
-        logger.info("%s batch..." % (
-            len(batch)))
-        #for protein, data in batch.items():
+
         for proteinId, data in protein_digests_dict.items():
             peptides_histogram = defaultdict(int)
             for sequence in data['peptide_sequences']:
@@ -404,16 +404,7 @@ class DigestAndIngestTask(object):
                 pdp_peptide_ids.append(peptide.id)
                 pdp_protein_digest_ids.append(data['protein_digest'].id)
                 pdp_peptide_count.append(count)
-                #if (pdp_counter % 1e4) == 0:
-                #      cur = db.get_psycopg2_cursor();
-                #      cur.execute("select protein_digest_peptide_insert(%s, %s, %s);", (pdp_peptide_ids, pdp_protein_digest_ids, pdp_peptide_count))
-                #      db.psycopg2_connection.commit()
-        logger.info(" %s pdp_peptide_ids..." % (
-            len(pdp_peptide_ids)))
-        logger.info(" %s pdp_protein_digest_ids,..." % (
-            len(pdp_protein_digest_ids,)))
-        logger.info(" %s pdp_peptide_count..." % (
-            len(pdp_peptide_count)))
+
         cur = db.get_psycopg2_cursor()
         cur.execute("select protein_digest_peptide_insert(%s, %s, %s);",
                     (pdp_peptide_ids, pdp_protein_digest_ids, pdp_peptide_count))
@@ -443,16 +434,14 @@ class DigestAndIngestTask(object):
             len(batch)))
         for row in batch:
             dicts.append({
-                'taxon_digest_id': taxon_digest.id,
+                'taxon_digest_id': row[2],
                 'peptide_id': row[0],
                 'count': row[1],
             })
-            taxon_digest_ids.append(taxon_digest.id)
+            taxon_digest_ids.append(row[2])
             pepdide_ids.append(row[0])
             peptide_count.append(row[1])
-            # self.session.execute(db.tables['TaxonDigestPeptide'].insert(),
-        #                     dicts)
-        # self.session.commit()
+
         cur = db.get_psycopg2_cursor()
         cur.execute("select taxon_digest_peptide_insert(%s, %s, %s);",
                     (pepdide_ids, taxon_digest_ids, peptide_count))

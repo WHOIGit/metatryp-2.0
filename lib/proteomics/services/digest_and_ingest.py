@@ -14,6 +14,7 @@ from sqlalchemy.orm import sessionmaker
 from sqlalchemy.sql import func
 from collections import defaultdict
 from datetime import datetime
+import time
 
 
 class DigestAndIngestTask(object):
@@ -190,6 +191,7 @@ class DigestAndIngestTask(object):
 
         # Create proteins which do not exist in the db and add to undigested
         # collection.
+        start_time = time.time()
         num_new_proteins = 0
         for metadata, sequence in batch:
             if sequence not in existing_proteins:
@@ -206,6 +208,8 @@ class DigestAndIngestTask(object):
         logger.info("creating %s new proteins..." % (
             num_new_proteins))
         self.session.commit()
+        total_time = time.time() - start_time
+        logger.info("time elapsed: %s" % (total_time))
         self.stats['Protein'] += num_new_proteins
 
         # Digest undigested proteins.
@@ -291,6 +295,7 @@ class DigestAndIngestTask(object):
             existing_peptides_batch, existing_peptides)
 
         # Create non-existent peptides in bulk.
+        start_time = time.time()
         num_new_peptides = 0
         peptide_dicts = []
         for sequence in combined_peptide_sequences:
@@ -304,6 +309,8 @@ class DigestAndIngestTask(object):
         logger.info("Creating %s new peptides..." % num_new_peptides)
         self.session.execute(db.tables['Peptide'].insert(), peptide_dicts)
         self.session.commit()
+        total_time = time.time() - start_time
+        logger.info("peptide time elapsed: %s" % (total_time))
         self.stats['Peptide'] += num_new_peptides
 
         # Get newly created peptide objects and add to existing peptides.
@@ -332,6 +339,7 @@ class DigestAndIngestTask(object):
         # Create protein digest peptide instances in bulk.
         logger.info("Creating %s new protein digest peptides..." % (
             num_peptide_instances))
+        start_time = time.time()
         pdp_batch = []
         pdp_counter = 0
         for protein, data in batch.items():
@@ -351,6 +359,8 @@ class DigestAndIngestTask(object):
         self.session.execute(
             db.tables['ProteinDigestPeptide'].insert(), pdp_batch)
         self.session.commit()
+        total_time = time.time() - start_time
+        logger.info("protein digest time elapsed: %s" % (total_time))
         self.stats['ProteinDigestPeptide'] += num_peptide_instances
 
     def update_existing_peptides_(self, sequences, existing_peptides):
@@ -365,6 +375,7 @@ class DigestAndIngestTask(object):
                                            logger=None):
         if not logger:
             logger = self.logger
+        start_time = time.time()
         dicts = []
         logger.info("Creating %s new taxon digest peptides..." % (
             len(batch)))
@@ -377,6 +388,8 @@ class DigestAndIngestTask(object):
         self.session.execute(db.tables['TaxonDigestPeptide'].insert(),
                              dicts)
         self.session.commit()
+        total_time = time.time() - start_time
+        logger.info("taxon digest time elapsed: %s" % (total_time))
 
     def get_child_logger(self, name=None, base_msg=None, parent_logger=None):
         if not parent_logger:

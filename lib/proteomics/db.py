@@ -11,11 +11,20 @@ from sqlalchemy.orm import mapper, relationship
 from sqlalchemy.orm import object_session
 from sqlalchemy.orm import sessionmaker
 from sqlalchemy.orm.util import has_identity
-
+import psycopg2
 from proteomics import models
 
-db_connection=db_config.DB_CONN_PREFIX+'+psycopg2://+'+db_config.DB_USER+':'+db_config.DB_PASS+'@'+db_config.DB_HOST+':'+db_config.DB_PORT+'/'+db_config.DB_NAME
-engine = create_engine(db_connection)
+
+db_connection=db_config.DB_CONN_PREFIX+'+psycopg2://'+db_config.DB_USER+':'+db_config.DB_PASS+'@'+db_config.DB_HOST+':'+db_config.DB_PORT+'/'+db_config.DB_NAME
+engine = create_engine(db_connection, echo=False)
+
+#experiment with ditching the ORM and doing stored procedures instead
+
+psycopg2_connection = psycopg2.connect("user="+db_config.DB_USER + " password=" + db_config.DB_PASS + " host=" + db_config.DB_HOST + " dbname="+ db_config.DB_NAME)
+
+def get_psycopg2_cursor():
+    return psycopg2_connection.cursor()
+#end expreiment
 
 def get_connection():
     return engine.connect()
