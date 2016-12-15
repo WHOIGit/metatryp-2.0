@@ -5,7 +5,7 @@ usage: query_by_sequence.py [--max-distance=0] sequence_file
 
 commissioned by : Dr. Makoto Saito, 2013-03
 
-authorship: adorsk, 2013-05
+authorship: adorsk, 2013-05, updated by David Gaylord 2016-12
 
 description: This script queries a peptides database for the given set of
 peptide sequences.
@@ -18,11 +18,8 @@ Outputs: a CSV document to stdout whose rows contains:
 Imports and setup.
 """
 from proteomics import db
-from proteomics import config
-from proteomics.models import (Peptide, TaxonDigestPeptide, TaxonDigest)
 import argparse
 import logging
-import os
 
 
 """
@@ -51,7 +48,7 @@ def main():
 
     # Read in sequences to query.
     sequences = []
-    max_dist =   lev_dist = args.max_distance
+    max_dist = args.max_distance
     if args.sequence_file:
         with open(args.sequence_file, 'rb') as f:
             sequences = [line.strip() for line in f.readlines()]
@@ -68,9 +65,7 @@ def main():
 
     # Execute query for each sequence and print results.
     for seq in sequences:
-
-        cur = db.get_psycopg2_cursor();
-
+        cur = db.get_psycopg2_cursor()
         cur.execute("select * from query_by_peptide_sequence(%s, %s);", (seq, max_dist))
 
         for row in cur.fetchall():
