@@ -22,13 +22,9 @@ class DigestAndIngestTask(object):
         self.logger = logger
         self.fasta_paths = fasta_paths
         self.digest = digest
-
         self.get_connection = get_connection
 
     def run(self):
-        # Get session.
-        self.session = db.get_session(bind=self.get_connection())
-        self.digest = self.session.merge(self.digest)
 
         # Initialize stats dict.
         self.stats = defaultdict(int)
@@ -162,7 +158,7 @@ class DigestAndIngestTask(object):
             protein = Protein(id=record[0], sequence=record[1], mass=record[2])
             existing_proteins[protein.sequence] = protein
             existing_protein_ids.append(record[0]);
-
+        db.psycopg2_connection.commit()
         # Initialize collection of undigested proteins.
         undigested_proteins = {}
         digested_proteins = {}
@@ -170,13 +166,13 @@ class DigestAndIngestTask(object):
         protein_masses = []
         #testing now, convert to stored procedure
         if existing_proteins:
+            cur = db.get_psycopg2_cursor()
             cur.execute("select * from protein join protein_digest on protein.id = protein_digest.protein_id where protein.id in %s and protein_digest.digest_id = %s", ( tuple(existing_protein_ids), self.digest.id,))
 
             for record in cur.fetchall():
                 protein = Protein(id=record[0], sequence=record[1], mass=record[2])
                 digested_proteins[protein.sequence] = protein
-
-
+            db.psycopg2_connection.commit()
         for protein in existing_proteins.values():
             if protein.sequence not in digested_proteins:
                 undigested_proteins[protein.sequence] = protein
@@ -353,8 +349,7 @@ class DigestAndIngestTask(object):
         cur.execute("select peptide_insert(%s, %s);", (peptide_sequences, peptide_masses))
 
         db.psycopg2_connection.commit()
-        total_time = time.time() - start_time
-        logger.info("peptide time elapsed: %s" % (total_time))
+
 
         self.stats['Peptide'] += num_new_peptides
 
@@ -381,7 +376,8 @@ class DigestAndIngestTask(object):
             data['peptide_histogram'] = peptides_histogram
             # Update number of peptide instances.
             num_peptide_instances += len(peptides_histogram)
-
+        total_time = time.time() - start_time
+        logger.info("peptide time elapsed: %s" % (total_time))
         # Create protein digest peptide instances in bulk.
         logger.info("Creating %s new protein digest peptides..." % (
             num_peptide_instances))
@@ -399,7 +395,8 @@ class DigestAndIngestTask(object):
                 pdp_peptide_ids.append(peptide.id)
                 pdp_protein_digest_ids.append(data['protein_digest'].id)
                 pdp_peptide_count.append(count)
-
+        total_time = time.time() - start_time
+        logger.info("protein digest loop time elapsed: %s" % (total_time))
         cur = db.get_psycopg2_cursor()
         cur.execute("select protein_digest_peptide_insert(%s, %s, %s);",
                     (pdp_peptide_ids, pdp_protein_digest_ids, pdp_peptide_count))
