@@ -21,7 +21,7 @@ Imports and setup.
 from proteomics import db
 from proteomics import config
 from proteomics.models import (Protease, Digest)
-from proteomics.services.digest_and_ingest_metagenome import DigestAndIngestTask
+from proteomics.services.digest_and_ingest_metagenome import DigestAndIngestMetagenomeTask
 import argparse
 import logging
 import json
@@ -65,7 +65,7 @@ def main():
     digest = get_digest(logger, digest_def)
     logger.info("Digest 2'%s'." % digest.id)
     # Run the digest/ingest task.
-    task = DigestAndIngestTask(
+    task = DigestAndIngestMetagenomeTask(
         logger=logger,
         fasta_paths=fasta_files,
         digest=digest,
