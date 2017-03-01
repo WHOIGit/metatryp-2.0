@@ -127,21 +127,13 @@ class DigestAndIngestMetagenomeTask(object):
         if not logger:
             logger = self.logger
         # Get existing metagenome sequences (proteins) by searching for sequences.
-        existing_sequences = {}
-        existing_sequence_ids = []
+
         cur = db.get_psycopg2_cursor()
         sequences = []
         metadataList = []
         for metadata, sequence in batch:
             sequences.append(sequence)
 
-
-        cur.execute("select * from metagenome_sequence where metagenome_sequence.sequence in %s", (tuple(sequences),))
-
-        for record in cur.fetchall():
-            meta_seq = Metagenome_Sequence(id=record[0], sequence=record[1], metagenome_id=record[2])
-            existing_sequences[meta_seq.sequence] = meta_seq
-            existing_sequence_ids.append(record[0]);
         db.psycopg2_connection.commit()
         # Initialize collection of undigested proteins.
         undigested_sequences = {}
@@ -151,22 +143,6 @@ class DigestAndIngestMetagenomeTask(object):
         metagenome_ids = []
         metagenome_accesion_ids = {}
 
-        #testing now, convert to stored procedure
-        if existing_sequences:
-            cur = db.get_psycopg2_cursor()
-            #check to see if sequence has previously been digested
-            cur.execute(
-                "select ms.* from metagenome_sequence ms join metagenome_sequence_digest msd on ms.id = msd.metagenome_sequence_id where ms.id in %s and msd.digest_id = %s",
-                (tuple(existing_sequence_ids), self.digest.id,))
-
-            for record in cur.fetchall():
-                meta_seq = Metagenome_Sequence(id=record[0], sequence=record[1], metagenome_id=record[2], sequence_id=record[3])
-                digested_sequences[meta_seq.sequence] = meta_seq
-            db.psycopg2_connection.commit()
-        for meta_seq in existing_sequences.values():
-       #     if meta_seq.sequence not in digested_sequences:
-                undigested_sequences[meta_seq.sequence] = meta_seq
-
         # Create proteins which do not exist in the db and add to undigested
         # collection.
 
@@ -174,7 +150,7 @@ class DigestAndIngestMetagenomeTask(object):
         num_new_sequences = 0
         for metadata, sequence in batch:
 
-            if sequence not in existing_sequences:
+  #          if sequence not in existing_sequences:
                  num_new_sequences += 1
                  # add sequence and mass to their respective lists to be passed to postgres stored procedure
                  #if (sequence not in metagenome_sequences):
@@ -195,7 +171,7 @@ class DigestAndIngestMetagenomeTask(object):
                 logger.exception("Error processing metagenome sequence, skipping")
                 continue
             undigested_sequences[record[0]] = meta_seq
-            existing_sequences[record[0]] = meta_seq
+           # existing_sequences[record[0]] = meta_seq
             metagenome_accesion_ids[meta_seq.sequence_id]= meta_seq.id;
 
         db.psycopg2_connection.commit()
