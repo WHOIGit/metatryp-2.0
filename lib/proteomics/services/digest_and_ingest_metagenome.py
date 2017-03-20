@@ -2,7 +2,8 @@ from proteomics.models import (Taxon, Protein,
                                TaxonProtein, ProteinDigest, Peptide,
                                ProteinDigestPeptide, TaxonDigestPeptide,
                                TaxonDigest, Digest, Protease, Metagenome, Metagenome_Annotation,
-                               Metagenome_Sequence_Peptide, Metagenome_Sequence_Digest, Metagenome_Sequence, Metagenome_Taxon)
+                               Metagenome_Sequence_Peptide, Metagenome_Sequence_Digest, Metagenome_Sequence,
+                               Metagenome_Taxon)
 from proteomics import db
 from proteomics.util.digest import cleave
 from proteomics.util.logging_util import LoggerLogHandler
@@ -27,6 +28,7 @@ class DigestAndIngestMetagenomeTask(object):
         self.fasta_paths = fasta_paths
         self.digest = digest
         self.get_connection = get_connection
+        self.total_peptide_time = 0;
 
     def run(self):
 
@@ -57,22 +59,24 @@ class DigestAndIngestMetagenomeTask(object):
         metagenome_result = cur.fetchone()
         db.psycopg2_connection.commit()
         if metagenome_result is None:
-            #add a metagenome to the DB
-            #cur.execute("insert into metagenome(name) values(%s);", (metagenome_name,))
+            # add a metagenome to the DB
+            # cur.execute("insert into metagenome(name) values(%s);", (metagenome_name,))
             cur.execute("select * from metagenome_insert(%s);", (metagenome_name,))
-            db.psycopg2_connection.commit()
+            # db.psycopg2_connection.commit()
             metagenome_result = cur.fetchone()
             self.stats['Metagenome'] += 1
             file_logger.info("Created metagenome '%s'" % metagenome_name)
         metagenome = Metagenome(id=metagenome_result[0], name=metagenome_name)
         # Check if metagenome has already been digested with given digestion agent.
-        cur.execute("select md.digest_id from metagenome_sequence_digest md where md.metagenome_sequence_id in (select ms.id from metagenome_sequence ms where ms.metagenome_id = %s) and md.digest_id = %s;", (metagenome.id,self.digest.id,))
+        cur.execute(
+            "select md.digest_id from metagenome_sequence_digest_peptide md where md.metagenome_sequence_id in (select ms.id from metagenome_sequence ms where ms.metagenome_id = %s) and md.digest_id = %s;",
+            (metagenome.id, self.digest.id,))
         db.psycopg2_connection.commit()
         metagenome_digest_result = cur.fetchone()
 
-        if  metagenome_digest_result:
-        # If digest has been run on this metagenome, don't do anything.
-        #if taxon_digest:
+        if metagenome_digest_result:
+            # If digest has been run on this metagenome, don't do anything.
+            # if taxon_digest:
             file_logger.info((
                                  "Metagenome '%s' has already been digested with"
                                  " digest '%s', skipping."
@@ -98,7 +102,7 @@ class DigestAndIngestMetagenomeTask(object):
             batch_counter += 1
             if (batch_counter % batch_size) == 0:
                 self.process_metagenome_sequence_batch(
-                    batch,metagenome, logger=protein_logger)
+                    batch, metagenome, logger=protein_logger)
                 protein_logger.info(
                     ("%s of %s (%.1f%%)") % (
                         batch_counter, num_proteins,
@@ -108,8 +112,7 @@ class DigestAndIngestMetagenomeTask(object):
                 batch = []
         self.process_metagenome_sequence_batch(
             batch, metagenome, logger=protein_logger)
-
-
+        protein_logger.info("Total Peptide Time: %s" % self.total_peptide_time)
 
     def get_checksum(self, path):
         sha1 = hashlib.sha1()
@@ -128,16 +131,13 @@ class DigestAndIngestMetagenomeTask(object):
             logger = self.logger
         # Get existing metagenome sequences (proteins) by searching for sequences.
 
-        cur = db.get_psycopg2_cursor()
         sequences = []
         metadataList = []
         for metadata, sequence in batch:
             sequences.append(sequence)
 
-        db.psycopg2_connection.commit()
         # Initialize collection of undigested proteins.
         undigested_sequences = {}
-        digested_sequences = {}
         metagenome_sequences = []
         metagenome_digest_ids = []
         metagenome_ids = []
@@ -149,30 +149,28 @@ class DigestAndIngestMetagenomeTask(object):
         start_time = time.time()
         num_new_sequences = 0
         for metadata, sequence in batch:
+            num_new_sequences += 1
+            # add sequence and mass to their respective lists to be passed to postgres stored procedure
+            metagenome_sequences.append(sequence)
+            metadataList.append(metadata)
+            metagenome_digest_ids.append(self.digest.id)
+            metagenome_ids.append(metagenome.id)
 
-  #          if sequence not in existing_sequences:
-                 num_new_sequences += 1
-                 # add sequence and mass to their respective lists to be passed to postgres stored procedure
-                 #if (sequence not in metagenome_sequences):
-                 metagenome_sequences.append(sequence)
-                 metadataList.append(metadata)
-                 metagenome_digest_ids.append(self.digest.id)
-                 metagenome_ids.append(metagenome.id)
-
-        logger.info("creating %s new metagenome sequences..." % (
-            num_new_sequences))
+       # logger.info("creating %s new metagenome sequences..." % (
+        #    num_new_sequences))
         cur = db.get_psycopg2_cursor()
-        cur.execute("select * from metagenome_sequence_insert(%s, %s, %s);", (metagenome_sequences, metagenome_ids, metadataList))
+        cur.execute("select * from metagenome_sequence_insert(%s, %s, %s);",
+                    (metagenome_sequences, metagenome_ids, metadataList))
         # iterate through the protein records returned from the insert and build a protein object
         for record in cur:
             try:
-                meta_seq = Metagenome_Sequence(id=record[0], sequence=record[1], metagenome_id=record[2], sequence_id=record[3])
+                meta_seq = Metagenome_Sequence(id=record[0], sequence=record[1], metagenome_id=record[2],
+                                               sequence_id=record[3])
             except Exception as e:
                 logger.exception("Error processing metagenome sequence, skipping")
                 continue
             undigested_sequences[record[0]] = meta_seq
-           # existing_sequences[record[0]] = meta_seq
-            metagenome_accesion_ids[meta_seq.sequence_id]= meta_seq.id;
+            metagenome_accesion_ids[meta_seq.sequence_id] = meta_seq.id;
 
         db.psycopg2_connection.commit()
         total_time = time.time() - start_time
@@ -181,16 +179,11 @@ class DigestAndIngestMetagenomeTask(object):
 
         # Digest undigested proteins.
         if undigested_sequences:
-            num_undigested = len(undigested_sequences)
-            logger.info("digesting %s proteins" % num_new_sequences)
+            #logger.info("digesting %s proteins" % num_new_sequences)
             undigested_batch = {}
             peptide_counter = 0
-            meta_seq_digests = []
 
             for metagenome_sequence in undigested_sequences.values():
-                metagenome_sequence_digest = Metagenome_Sequence_Digest(metagenome_sequence=metagenome_sequence,
-                                               digest=self.digest)
-                meta_seq_digests.append(metagenome_sequence_digest)
                 peptide_sequences = cleave(
                     metagenome_sequence.sequence,
                     self.digest.protease.cleavage_rule,
@@ -201,105 +194,56 @@ class DigestAndIngestMetagenomeTask(object):
                 peptide_counter += len(peptide_sequences)
                 undigested_batch[metagenome_sequence.id] = {
                     'peptide_sequences': peptide_sequences,
-                    'metagenome_sequence_digest': metagenome_sequence_digest,
+                    'metagenome_sequence': metagenome_sequence,
+                    'digest': self.digest,
                 }
+                #if (peptide_counter > 500):
                 if (peptide_counter > 1e4):
                     self.process_peptide_batch(undigested_batch, logger)
                     peptide_counter = 0
             self.process_peptide_batch(undigested_batch, logger)
             annotations = self.get_venter_annotations(metagenome_accesion_ids, logger)
-            logger.info("annotations: %s" % (annotations))
+            #logger.info("annotations: %s" % (annotations))
 
-    def process_peptide_batch(self, batch, logger=None):
+    def process_peptide_batch(self, metagenome_sequence_digests_dict, logger=None):
         if not logger:
             logger = self.logger
 
-        # Assemble combined peptide sequences and metagenome digests.
+        # Assemble combined peptide sequences and metagenome digests.  Each metagenome sequence can have many peptides.
         combined_peptide_sequences = set()
-
-        metagenome_sequence_ids = []
-        digest_ids = []
-        metagenome_sequence_digests = []
-        metagenome_sequence_digests_dict = {}
-        for proteinId, data in batch.items():
+        for proteinId, data in metagenome_sequence_digests_dict.items():
             for sequence in data['peptide_sequences']:
                 combined_peptide_sequences.add(sequence)
 
-            msd = data['metagenome_sequence_digest']
-            metagenome_sequence_ids.append(msd.metagenome_sequence.id)
-            digest_ids.append(msd.digest.id)
-
-        cur = db.get_psycopg2_cursor()
-        cur.execute("select * from metagenome_sequence_digest_insert(%s, %s);", (metagenome_sequence_ids, digest_ids))
-        # iterate through the metagenome_sequence_digest records returned from the insert and build a metagenome_sequence_digest object
-        for record in cur:
-
-                try:
-                    metagenome_sequence_digest = Metagenome_Sequence_Digest(id=record[0], metagenome_sequence=record[1], digest=record[2])
-                    metagenome_sequence_digests.append(metagenome_sequence_digest)
-                    batch_record = batch.get(record[1])
-                    metagenome_sequence_digests_dict[record[1]] = {
-                        'peptide_sequences': batch_record['peptide_sequences'],
-                        'metagenome_sequence_digest': metagenome_sequence_digest,
-                    }
-                except Exception as e:
-                    logger.exception("Error processing metagenome sequence digest, skipping")
-                    continue
-
-        db.psycopg2_connection.commit()
-        self.stats['MetagenomeSequenceDigest'] += len(metagenome_sequence_digests)
-
         # Get existing peptides.
         existing_peptides = {}
-        existing_peptides_batch = []
-        existing_peptides_counter = 0
-        for sequence in combined_peptide_sequences:
-            existing_peptides_counter += 1
-            existing_peptides_batch.append(sequence)
-            if (existing_peptides_counter % 500) == 0:
-                self.update_existing_peptides_(
-                    existing_peptides_batch, existing_peptides)
-                existing_peptides_batch = []
-        self.update_existing_peptides_(
-            existing_peptides_batch, existing_peptides)
 
         # Create non-existent peptides in bulk.
         start_time = time.time()
         num_new_peptides = 0
-        peptide_dicts = []
         peptide_sequences = []
         peptide_masses = []
         for sequence in combined_peptide_sequences:
-            if sequence not in existing_peptides:
-                num_new_peptides += 1
-                mass = get_aa_sequence_mass(sequence)
-                peptide_dicts.append({
-                    'sequence': sequence,
-                    'mass': mass,
-                })
-                peptide_sequences.append(sequence)
-                peptide_masses.append(mass)
+            num_new_peptides += 1
+            #calculate mass of peptide
+            mass = get_aa_sequence_mass(sequence)
+            peptide_sequences.append(sequence)
+            peptide_masses.append(mass)
         logger.info("Creating %s new peptides..." % num_new_peptides)
         cur = db.get_psycopg2_cursor()
-        cur.execute("select peptide_insert(%s, %s);", (peptide_sequences, peptide_masses))
+        cur.execute("select * from peptide_insert(%s, %s);", (peptide_sequences, peptide_masses))
+        for record in cur:
+            try:
+                peptide = Peptide(id=record[0], sequence=record[1],)
+                existing_peptides[peptide.sequence] = peptide
+            except Exception as e:
+                logger.exception("Error processing peptide, skipping")
+                continue
 
-        db.psycopg2_connection.commit()
-
-
+        total_time = time.time() - start_time
+        self.total_peptide_time = self.total_peptide_time + total_time;
+        logger.info("peptide time elapsed: %s" % (total_time))
         self.stats['Peptide'] += num_new_peptides
-
-        # Get newly created peptide objects and add to existing peptides.
-        created_peptides_batch = []
-        created_peptides_counter = 0
-        for peptide_dict in peptide_dicts:
-            created_peptides_counter += 1
-            created_peptides_batch.append(peptide_dict['sequence'])
-            if (created_peptides_counter % 500) == 0:
-                self.update_existing_peptides_(created_peptides_batch,
-                                               existing_peptides)
-                created_peptides_batch = []
-        self.update_existing_peptides_(
-            created_peptides_batch, existing_peptides)
 
         # Create histogram of peptide sequence occurences for each protein.
         num_peptide_instances = 0
@@ -311,15 +255,15 @@ class DigestAndIngestMetagenomeTask(object):
             data['peptide_histogram'] = peptides_histogram
             # Update number of peptide instances.
             num_peptide_instances += len(peptides_histogram)
-        total_time = time.time() - start_time
-        logger.info("peptide time elapsed: %s" % (total_time))
+
         # Create protein digest peptide instances in bulk.
-        logger.info("Creating %s new metagenome sequence digest peptides..." % (
-            num_peptide_instances))
+        #logger.info("Creating %s new metagenome sequence digest peptides..." % (
+         #   num_peptide_instances))
 
         start_time = time.time()
         pdp_peptide_ids = []
-        pdp_protein_digest_ids = []
+        pdp_metagenome_sequence_ids = []
+        pdp_digest_ids = []
         pdp_peptide_count = []
         pdp_counter = 0
         for sequenceId, data in metagenome_sequence_digests_dict.items():
@@ -327,48 +271,37 @@ class DigestAndIngestMetagenomeTask(object):
                 pdp_counter += 1
                 peptide = existing_peptides[sequence]
                 pdp_peptide_ids.append(peptide.id)
-                pdp_protein_digest_ids.append(data['metagenome_sequence_digest'].id)
+                pdp_metagenome_sequence_ids.append(data['metagenome_sequence'].id)
+                pdp_digest_ids.append(data['digest'].id)
                 pdp_peptide_count.append(count)
         total_time = time.time() - start_time
-        logger.info("sequence digest loop time elapsed: %s" % (total_time))
-        cur = db.get_psycopg2_cursor()
-        cur.execute("select metagenome_sequence_digest_peptide_insert(%s, %s, %s);",
-                    (pdp_peptide_ids, pdp_protein_digest_ids, pdp_peptide_count))
+       # logger.info("sequence digest loop time elapsed: %s" % (total_time))
+      #  cur = db.get_psycopg2_cursor()
+        cur.execute("select metagenome_sequence_digest_peptide_insert(%s, %s, %s, %s);",
+                    (pdp_peptide_ids, pdp_metagenome_sequence_ids, pdp_digest_ids, pdp_peptide_count))
         db.psycopg2_connection.commit()
         total_time = time.time() - start_time
-        logger.info("protein digest time elapsed: %s" % (total_time))
+       # logger.info("protein digest time elapsed: %s" % (total_time))
         self.stats['ProteinDigestPeptide'] += num_peptide_instances
-
-    def update_existing_peptides_(self, sequences, existing_peptides):
-        if not sequences:
-            return
-
-        cur = db.get_psycopg2_cursor()
-        cur.execute("select * from peptide where peptide.sequence in %s", (tuple(sequences),))
-        for record in cur.fetchall():
-            peptide = Peptide(id=record[0], sequence=record[1], mass=record[2])
-            existing_peptides[peptide.sequence] = peptide
-        db.psycopg2_connection.commit()
 
     def get_venter_annotations(self, seq_ids, logger=None):
         if not logger:
             logger = self.logger
         metagenome_sequence_ids = []
         the_annotations = extract_venter_annotations(self, seq_ids.keys(), logger)
-        logger.info("annotations" % (the_annotations))
-        accession_numbers =[]
-        scaffold_ids =[]
-        orf_ids =[]
-        orf_nums =[]
-        annotations =[]
-        gene_names =[]
-        orf_tax_levels =[]
-        orf_taxonomies =[]
-        orf_tax_ids =[]
-        contig_tax_ids =[]
-        contig_taxonomies =[]
-        contig_tax_levels =[]
-        metagenome_annotation_ids = []
+       # logger.info("annotations" % (the_annotations))
+        accession_numbers = []
+        scaffold_ids = []
+        orf_ids = []
+        orf_nums = []
+        annotations = []
+        gene_names = []
+        orf_tax_levels = []
+        orf_taxonomies = []
+        orf_tax_ids = []
+        contig_tax_ids = []
+        contig_taxonomies = []
+        contig_tax_levels = []
         for annot in the_annotations:
             accession_numbers.append(annot[0])
             metagenome_sequence_ids.append(seq_ids[annot[0]])
@@ -393,18 +326,12 @@ class DigestAndIngestMetagenomeTask(object):
             else:
                 contig_tax_ids.append(annot[11])
         cur = db.get_psycopg2_cursor()
-        cur.execute("select * from metagenome_annotation_insert(%s, %s, %s, %s, %s, %s, %s, %s, %s, %s);",
-                    (accession_numbers, metagenome_sequence_ids, scaffold_ids, orf_ids, orf_nums, annotations, gene_names,
-                     orf_tax_levels,orf_taxonomies,orf_tax_ids))
+        cur.execute("select * from metagenome_annotation_insert(%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s);",
+                    (accession_numbers, metagenome_sequence_ids, scaffold_ids, orf_ids, orf_nums, annotations,
+                     gene_names,
+                     orf_tax_levels, orf_taxonomies, orf_tax_ids, contig_tax_ids, contig_taxonomies, contig_tax_levels))
 
-        for record in cur.fetchall():
-            metagenome_annotation_ids.append(record[0])
-        cur.execute("select metagenome_contig_taxonomy_insert(%s, %s, %s, %s);",
-                    (metagenome_annotation_ids, contig_tax_ids, contig_taxonomies,contig_tax_levels))
         db.psycopg2_connection.commit()
-
-
-
 
     def get_child_logger(self, name=None, base_msg=None, parent_logger=None):
         if not parent_logger:
