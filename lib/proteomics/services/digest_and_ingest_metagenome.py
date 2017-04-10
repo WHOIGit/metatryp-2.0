@@ -14,7 +14,7 @@ from proteomics.services.annotations import extract_venter_annotations
 import os
 import hashlib
 import logging
-import numpy
+
 
 from collections import defaultdict
 from datetime import datetime
@@ -29,6 +29,7 @@ class DigestAndIngestMetagenomeTask(object):
         self.digest = digest
         self.get_connection = get_connection
         self.total_peptide_time = 0;
+
 
     def run(self):
 
@@ -89,7 +90,7 @@ class DigestAndIngestMetagenomeTask(object):
         for metadata, sequence in fasta.read(path):
             num_proteins += 1
         file_logger.info("%s total metagenome sequences." % num_proteins)
-        batch_size = 500
+        batch_size = 999
         batch_counter = 0
         batch = []
         protein_logger = self.get_child_logger(
@@ -191,16 +192,19 @@ class DigestAndIngestMetagenomeTask(object):
                     min_acids=self.digest.min_acids,
                     max_acids=self.digest.max_acids,
                 )
+
                 peptide_counter += len(peptide_sequences)
+
                 undigested_batch[metagenome_sequence.id] = {
                     'peptide_sequences': peptide_sequences,
                     'metagenome_sequence': metagenome_sequence,
                     'digest': self.digest,
                 }
-                #if (peptide_counter > 500):
-                if (peptide_counter > 1e4):
-                    self.process_peptide_batch(undigested_batch, logger)
-                    peptide_counter = 0
+
+                # if (peptide_counter > 1e4):
+                #     self.process_peptide_batch(undigested_batch, logger)
+                #     undigested_batch = {}
+                #     peptide_counter = 0
             self.process_peptide_batch(undigested_batch, logger)
             annotations = self.get_venter_annotations(metagenome_accesion_ids, logger)
             #logger.info("annotations: %s" % (annotations))
@@ -224,11 +228,11 @@ class DigestAndIngestMetagenomeTask(object):
         peptide_sequences = []
         peptide_masses = []
         for sequence in combined_peptide_sequences:
-            num_new_peptides += 1
-            #calculate mass of peptide
-            mass = get_aa_sequence_mass(sequence)
-            peptide_sequences.append(sequence)
-            peptide_masses.append(mass)
+                num_new_peptides += 1
+                #calculate mass of peptide
+                mass = get_aa_sequence_mass(sequence)
+                peptide_sequences.append(sequence)
+                peptide_masses.append(mass)
         logger.info("Creating %s new peptides..." % num_new_peptides)
         cur = db.get_psycopg2_cursor()
         cur.execute("select * from peptide_insert(%s, %s);", (peptide_sequences, peptide_masses))
