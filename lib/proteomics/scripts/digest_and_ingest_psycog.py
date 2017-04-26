@@ -26,6 +26,7 @@ import argparse
 import logging
 import json
 import time
+import os
 
 """
 Process arguments.
@@ -35,7 +36,9 @@ argparser = argparse.ArgumentParser(description=(
 argparser.add_argument('--digest-def', help=(
     'JSON file containing a digest definition. If not provided, default digest'
     'will be used'))
-argparser.add_argument('fasta_files', nargs='+',
+argparser.add_argument('--digest_dir', help=(
+    'Directory containing all the FASTA files to be processed.  Can be used for batch processing'))
+argparser.add_argument('--fasta_files', nargs='+',
                     help=('List of FASTA files containing protein sequences.'))
 """
 Main method.
@@ -48,8 +51,22 @@ def main():
     logger.addHandler(logging.StreamHandler())
     logger.setLevel(logging.INFO)
 
-    fasta_files = args.fasta_files
+    fasta_files = []
+    if args.fasta_files:
+        fasta_files = args.fasta_files
+    # Parse digest definition if given.
+    if args.digest_dir:
+        try:
+            directory = args.digest_dir
 
+            for filename in os.listdir(directory):
+                if filename.endswith(".faa") or filename.endswith(".fasta"):
+                    fullpath=os.path.join(directory, filename)
+                    logger.info("FASTA file: %s" % fullpath)
+                    fasta_files.append(fullpath)
+        except:
+            logger.exception("Could not parse digest_dir file '%s'" % (
+                args.digest_dir))
     # Parse digest definition if given.
     if args.digest_def:
         try:
