@@ -1,10 +1,13 @@
 from collections import deque
 from itertools import chain
+from proteomics.util.logging_util import LoggerLogHandler
+import logging
 import re
 
 
-def cleave(sequence, rule, max_missed_cleavages=0, min_acids=None,
+def cleave(sequence, rule, logger=None, max_missed_cleavages=0, min_acids=None,
            max_acids=None):
+
     """Cleaves a polypeptide sequence using a given rule.
     Taken from pyteomics.parser .
     
@@ -38,6 +41,9 @@ def cleave(sequence, rule, max_missed_cleavages=0, min_acids=None,
         for j in range(0, len(cleavage_sites)-1):
             peptide = sequence[cleavage_sites[j]:cleavage_sites[-1]]
             if peptide == '': 
+                continue
+            if peptide.find('X') != -1:
+                logger.info("Rejecting peptide due to 'X' in sequence: %s" % (peptide))
                 continue
             if min_acids is not None and len(peptide) < min_acids:
                 continue
