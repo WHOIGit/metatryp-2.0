@@ -1,4 +1,5 @@
 import os
+import re
 
 # These cleavage rules are taken from:
 # http://web.expasy.org/peptide_cutter/peptidecutter_enzymes.html,
@@ -44,11 +45,16 @@ CLEAVAGE_RULES = {
     'trypsin':       '([KR](?=[^P]))|((?<=W)K(?=P))|((?<=M)R(?=P))'
 }
 
-
+# regex to check for presence of invalid amino acids in sequence
+# if regex returns true it means it is not a valid sequence (contains a non amino acid character)
+# allowing X's in this expression because in the case of protein sequences we may be able to extract some peptides even if we can't get the entire sequence
+VALID_AAS = re.compile("([^GASPVTCLINDQKEMHFRYWX])+")
 
 # Monoistopic amino acid residue masses, per
 # http://education.expasy.org/student_projects/isotopident/htdocs/aa-list.html
+# 4-26-17 Ammended list to include X (unknown) with a mass of 0, this solves processing errors
 AA_MASSES = {
+    'X': 0,
     'G': 57.02146,
     'A': 71.03711,
     'S': 87.03203, 
@@ -80,6 +86,7 @@ DEFAULT_DIGEST_DEFINITION = {
     },
     'max_missed_cleavages': 0,
     'min_acids': 6,
+    'max_acids': 255,
 }
 
 #SQLALCHEMY_DATABASE_URI = "postgresql://metatryp:Pr0t3om1cs@localhost:5432/proteomics"
