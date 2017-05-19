@@ -13,6 +13,7 @@ import logging
 
 from collections import defaultdict
 from datetime import datetime
+from proteomics.config import VALID_AAS
 import time
 import re
 
@@ -45,7 +46,6 @@ class DigestAndIngestTask(object):
         taxon_id = os.path.splitext(os.path.basename(path))[0]
 
         # Get taxon object from db or create a new one.
-        #taxon = self.session.query(Taxon).get(taxon_id)
         taxon = Taxon(id=taxon_id)
         cur = db.get_psycopg2_cursor();
         cur.execute("select t.id from taxon t where t.id = %s;", (taxon_id,))
@@ -53,8 +53,6 @@ class DigestAndIngestTask(object):
         db.psycopg2_connection.commit()
         if taxon_result is None:
             #add a taxon to the DB
-
-            #  file_logger.info("Taxon Results '%s'" % taxon_results)
             cur.execute("insert into taxon (id) values(%s);", (taxon_id,))
             db.psycopg2_connection.commit()
             self.stats['Taxon'] += 1
@@ -67,7 +65,6 @@ class DigestAndIngestTask(object):
         taxon_digest = TaxonDigest(taxon=taxon, digest=self.digest)
         if taxon_digest_result:
         # If digest has been run on this taxon, don't do anything.
-        #if taxon_digest:
             file_logger.info((
                                  "Taxon '%s' has already been digested with"
                                  " digest '%s', skipping."
@@ -93,15 +90,14 @@ class DigestAndIngestTask(object):
             file_logger
         )
         protein_logger.info("")
+
         #check sequence against expected amino acids, if this regex returns true it means it is not a valid sequence (contains a non amino acid character)
-        seq_regex = re.compile("([^GASPVTCLINDQKEMHFRYW])+")
         for metadata, sequence in fasta.read(path):
-            if seq_regex.search(sequence):
+            if VALID_AAS.search(sequence):
                 file_logger.info("Tried to ingest invalid protein sequence %s" % sequence)
-                # if sequence != "No sequence found":
             else:
                 batch.append((metadata, sequence,))
-            batch_counter += 1
+                batch_counter += 1
             if (batch_counter % batch_size) == 0:
                 self.process_protein_batch(
                     batch, taxon, logger=protein_logger)
