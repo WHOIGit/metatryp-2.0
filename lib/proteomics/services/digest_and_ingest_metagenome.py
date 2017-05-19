@@ -10,7 +10,7 @@ from proteomics.util.logging_util import LoggerLogHandler
 from proteomics.util.mass import get_aa_sequence_mass
 from proteomics.util import fasta
 from proteomics.services.annotations import extract_venter_annotations
-
+from proteomics.config import VALID_AAS
 import os
 import hashlib
 import logging
@@ -51,9 +51,6 @@ class DigestAndIngestMetagenomeTask(object):
         # Get metagenome name from filename.
         # This may not be the best way to do this, might be better to allow user to input a name?
         metagenome_name = os.path.splitext(os.path.basename(path))[0]
-
-        # Get taxon object from db or create a new one.
-        metagenome_id = None
 
         cur = db.get_psycopg2_cursor();
         cur.execute("select m.id from metagenome m where m.name = %s;", (metagenome_name,))
@@ -99,8 +96,12 @@ class DigestAndIngestMetagenomeTask(object):
         )
         protein_logger.info("")
         for metadata, sequence in fasta.read(path):
-            batch.append((metadata, sequence,))
-            batch_counter += 1
+            # check sequence against expected amino acids, if this regex returns true it means it is not a valid sequence (contains a non amino acid character)
+            if VALID_AAS.search(sequence):
+                file_logger.info("Tried to ingest invalid protein sequence %s" % sequence)
+            else:
+                batch.append((metadata, sequence,))
+                batch_counter += 1
             if (batch_counter % batch_size) == 0:
                 self.process_metagenome_sequence_batch(
                     batch, metagenome, logger=protein_logger)
@@ -146,7 +147,6 @@ class DigestAndIngestMetagenomeTask(object):
 
         # Create proteins which do not exist in the db and add to undigested
         # collection.
-
         start_time = time.time()
         num_new_sequences = 0
         for metadata, sequence in batch:
@@ -188,6 +188,7 @@ class DigestAndIngestMetagenomeTask(object):
                 peptide_sequences = cleave(
                     metagenome_sequence.sequence,
                     self.digest.protease.cleavage_rule,
+                    self.logger,
                     self.digest.max_missed_cleavages,
                     min_acids=self.digest.min_acids,
                     max_acids=self.digest.max_acids,
@@ -201,10 +202,6 @@ class DigestAndIngestMetagenomeTask(object):
                     'digest': self.digest,
                 }
 
-                # if (peptide_counter > 1e4):
-                #     self.process_peptide_batch(undigested_batch, logger)
-                #     undigested_batch = {}
-                #     peptide_counter = 0
             self.process_peptide_batch(undigested_batch, logger)
             annotations = self.get_venter_annotations(metagenome_accesion_ids, logger)
             #logger.info("annotations: %s" % (annotations))
