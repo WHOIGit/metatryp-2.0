@@ -14,7 +14,7 @@ import logging
 from collections import defaultdict
 from datetime import datetime
 import time
-
+import re
 
 class DigestAndIngestTask(object):
     def __init__(self, logger=logging.getLogger(), fasta_paths=[],
@@ -85,7 +85,7 @@ class DigestAndIngestTask(object):
         for metadata, sequence in fasta.read(path):
             num_proteins += 1
         file_logger.info("%s total protein sequences." % num_proteins)
-        batch_size = 500
+        batch_size = 1000
         batch_counter = 0
         batch = []
         protein_logger = self.get_child_logger(
@@ -93,8 +93,14 @@ class DigestAndIngestTask(object):
             file_logger
         )
         protein_logger.info("")
+        #check sequence against expected amino acids, if this regex returns true it means it is not a valid sequence (contains a non amino acid character)
+        seq_regex = re.compile("([^GASPVTCLINDQKEMHFRYW])+")
         for metadata, sequence in fasta.read(path):
-            batch.append((metadata, sequence,))
+            if seq_regex.search(sequence):
+                file_logger.info("Tried to ingest invalid protein sequence %s" % sequence)
+                # if sequence != "No sequence found":
+            else:
+                batch.append((metadata, sequence,))
             batch_counter += 1
             if (batch_counter % batch_size) == 0:
                 self.process_protein_batch(
@@ -128,6 +134,7 @@ class DigestAndIngestTask(object):
         self.stats['TaxonDigestPeptide'] += tdp_counter
 
         self.logger.info("Done processing file '%s'" % path)
+        db.psycopg2_connection.commit()
 
     def get_checksum(self, path):
         sha1 = hashlib.sha1()
@@ -149,9 +156,9 @@ class DigestAndIngestTask(object):
         existing_protein_ids = []
         cur = db.get_psycopg2_cursor()
         sequences = []
+
         for metadata, sequence in batch:
-            if sequence != "No sequence found":
-                sequences.append(sequence)
+            sequences.append(sequence)
 
         cur.execute("select * from protein where protein.sequence in %s", (tuple(sequences),))
 
@@ -184,17 +191,16 @@ class DigestAndIngestTask(object):
         start_time = time.time()
         num_new_proteins = 0
         for metadata, sequence in batch:
-            if sequence not in existing_proteins and sequence != "No sequence found":
-                try:
-                    mass = get_aa_sequence_mass(sequence)
-                except Exception as e:
-                    logger.exception("Error processing protein, skipping")
-                    continue
-                num_new_proteins += 1
-                # add sequence and mass to their respective lists to be passed to postgres stored procedure
-                if (sequence not in protein_sequences):
-                    protein_sequences.append(sequence)
-                    protein_masses.append(mass)
+            try:
+                mass = get_aa_sequence_mass(sequence)
+            except Exception as e:
+                logger.exception("Error processing protein, skipping")
+                continue
+            num_new_proteins += 1
+            # add sequence and mass to their respective lists to be passed to postgres stored procedure
+            if (sequence not in protein_sequences):
+                protein_sequences.append(sequence)
+                protein_masses.append(mass)
 
         logger.info("creating %s new proteins..." % (
             num_new_proteins))
@@ -230,6 +236,7 @@ class DigestAndIngestTask(object):
                 peptide_sequences = cleave(
                     protein.sequence,
                     self.digest.protease.cleavage_rule,
+                    self.logger,
                     self.digest.max_missed_cleavages,
                     min_acids=self.digest.min_acids,
                     max_acids=self.digest.max_acids,
@@ -239,9 +246,7 @@ class DigestAndIngestTask(object):
                     'peptide_sequences': peptide_sequences,
                     'protein_digest': protein_digest,
                 }
-                if (peptide_counter > 1e4):
-                    self.process_peptide_batch(undigested_batch, logger)
-                    peptide_counter = 0
+
             self.process_peptide_batch(undigested_batch, logger)
 
         # Create taxon protein instances in bulk.
@@ -297,6 +302,7 @@ class DigestAndIngestTask(object):
 
         cur = db.get_psycopg2_cursor()
         cur.execute("select * from protein_digest_insert(%s, %s);", (protein_ids, digest_ids))
+
         # iterate through the protein_digest records returned from the insert and build a protein_digest object
         for record in cur:
 
@@ -314,21 +320,11 @@ class DigestAndIngestTask(object):
                     continue
 
         db.psycopg2_connection.commit()
+
         self.stats['ProteinDigest'] += len(protein_digests)
 
         # Get existing peptides.
         existing_peptides = {}
-        existing_peptides_batch = []
-        existing_peptides_counter = 0
-        for sequence in combined_peptide_sequences:
-            existing_peptides_counter += 1
-            existing_peptides_batch.append(sequence)
-            if (existing_peptides_counter % 500) == 0:
-                self.update_existing_peptides_(
-                    existing_peptides_batch, existing_peptides)
-                existing_peptides_batch = []
-        self.update_existing_peptides_(
-            existing_peptides_batch, existing_peptides)
 
         # Create non-existent peptides in bulk.
         start_time = time.time()
@@ -337,7 +333,7 @@ class DigestAndIngestTask(object):
         peptide_sequences = []
         peptide_masses = []
         for sequence in combined_peptide_sequences:
-            if sequence not in existing_peptides:
+            #if sequence not in existing_peptides:
                 num_new_peptides += 1
                 mass = get_aa_sequence_mass(sequence)
                 peptide_dicts.append({
@@ -348,26 +344,17 @@ class DigestAndIngestTask(object):
                 peptide_masses.append(mass)
         logger.info("Creating %s new peptides..." % num_new_peptides)
         cur = db.get_psycopg2_cursor()
-        cur.execute("select peptide_insert(%s, %s);", (peptide_sequences, peptide_masses))
-
-        db.psycopg2_connection.commit()
+        cur.execute("select * from peptide_insert(%s, %s);", (peptide_sequences, peptide_masses))
+        for record in cur:
+            try:
+                peptide = Peptide(id=record[0], sequence=record[1], )
+                existing_peptides[peptide.sequence] = peptide
+            except Exception as e:
+                logger.exception("Error processing peptide, skipping")
+                continue
 
 
         self.stats['Peptide'] += num_new_peptides
-
-        # Get newly created peptide objects and add to existing peptides.
-        created_peptides_batch = []
-        created_peptides_counter = 0
-        for peptide_dict in peptide_dicts:
-            created_peptides_counter += 1
-            created_peptides_batch.append(peptide_dict['sequence'])
-            if (created_peptides_counter % 500) == 0:
-                self.update_existing_peptides_(created_peptides_batch,
-                                               existing_peptides)
-                created_peptides_batch = []
-        self.update_existing_peptides_(
-            created_peptides_batch, existing_peptides)
-
         # Create histogram of peptide sequence occurences for each protein.
         num_peptide_instances = 0
 
