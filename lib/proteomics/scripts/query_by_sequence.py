@@ -36,6 +36,8 @@ argparser.add_argument('--sequence-file', help=(
 
 argparser.add_argument('--sequence', help='Amino acid sequence')
 
+argparser.add_argument('--type', help='Type of search to perform')
+
 """
 Main method.
 """
@@ -55,6 +57,12 @@ def main():
     elif args.sequence:
         sequences = [args.sequence]
 
+    # Read in whether to query just genomes ('g'), just metagenomes ('g') or both ('b').
+    # Genomes is the default search
+    type = 'g'
+    if args.type:
+        type = args.type
+
     if not sequences:
         argparser.error("Provide a query sequence via the '--sequence' option, "
                         "or a set of sequences via the --sequence-file option")
@@ -63,13 +71,21 @@ def main():
     headers = ['query', 'taxon', 'lev_distance', 'match']
     print ','.join(headers)
 
-    # Execute query for each sequence and print results.
-    for seq in sequences:
-        cur = db.get_psycopg2_cursor()
-        cur.execute("select * from query_by_peptide_sequence(%s, %s);", (seq, max_dist))
 
-        for row in cur.fetchall():
-            print ','.join([str(s) for s in [seq] + list(row)])
-        db.psycopg2_connection.commit()
+    # Execute query for each sequence and print results.
+    cur = db.get_psycopg2_cursor()
+    for seq in sequences:
+        if type == 'g' or type == 'b':
+            print 'GENOMIC RESULTS FOR'
+            cur.execute("select * from genomic_query_by_peptide_sequence(%s)", (seq,))
+            for row in cur.fetchall():
+                print ','.join([str(s) for s in [seq] + list(row)])
+        if type == 'm' or type == 'b':
+            print '\n\n';
+            print 'METAGENOMNIC RESULTS'
+            cur.execute("select * from metagenomic_query_by_peptide_sequence(%s)", (seq,))
+            for row in cur.fetchall():
+                print ','.join([str(s) for s in [seq] + list(row)])
+    db.psycopg2_connection.commit()
 if __name__ == '__main__':
     main()
