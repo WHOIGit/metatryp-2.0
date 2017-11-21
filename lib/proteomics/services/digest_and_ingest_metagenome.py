@@ -202,9 +202,13 @@ class DigestAndIngestMetagenomeTask(object):
                     'digest': self.digest,
                 }
 
+
             self.process_peptide_batch(undigested_batch, logger)
-            annotations = self.get_venter_annotations(metagenome_accesion_ids, logger)
-            #logger.info("annotations: %s" % (annotations))
+
+            # process annotations from GOS dataset
+            #if is_venter:
+             #   self.get_venter_annotations(metagenome_accesion_ids, logger)
+
 
     def process_peptide_batch(self, metagenome_sequence_digests_dict, logger=None):
         if not logger:
@@ -276,8 +280,7 @@ class DigestAndIngestMetagenomeTask(object):
                 pdp_digest_ids.append(data['digest'].id)
                 pdp_peptide_count.append(count)
         total_time = time.time() - start_time
-       # logger.info("sequence digest loop time elapsed: %s" % (total_time))
-      #  cur = db.get_psycopg2_cursor()
+
         cur.execute("select metagenome_sequence_digest_peptide_insert(%s, %s, %s, %s);",
                     (pdp_peptide_ids, pdp_metagenome_sequence_ids, pdp_digest_ids, pdp_peptide_count))
         db.psycopg2_connection.commit()
