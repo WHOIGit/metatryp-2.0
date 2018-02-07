@@ -6,7 +6,8 @@ from proteomics import db
 from proteomics.util.logging_util import LoggerLogHandler
 import os
 import logging
-from sqlalchemy.orm import sessionmaker
+import traceback
+
 from collections import defaultdict
 
 
@@ -16,56 +17,56 @@ class ClearTaxonDataTask(object):
         self.logger = logger
         self.taxon_ids = taxon_ids
 
-        # Assign get_connection function.
-        if not get_connection:
-            def get_connection():
-                engine = create_engine('sqlite://')
-                return engine.connect()
-        self.get_connection = get_connection
-
     def run(self):
-        # Get session.
-        self.session = db.get_session(bind=self.get_connection())
 
-        taxons = (
-            self.session.query(Taxon)
-            .filter(Taxon.id.in_(self.taxon_ids))
-        )
+        try:
+            # Get session.
+            cur = db.get_psycopg2_cursor();
+            self.logger.info("Clearing data for taxon '%s'" % self.taxon_ids)
 
-        for taxon in taxons:
-            self.logger.info("Clearing data for taxon '%s'" % taxon.id)
-            self.clear_data_for_taxon(taxon)
+            cur.execute("select t.id from taxon t where t.id in %s", (tuple(self.taxon_ids),))
+            taxon_results = cur.fetchall()
+
+            if taxon_results is None:
+                self.logger.info("No matching taxons found.  Nothing was changed")
+                exit()
+
+            for taxon in taxon_results:
+                self.logger.info("Clearing data for taxon '%s'" % taxon)
+                self.clear_data_for_taxon(taxon)
+        except Exception as e:
+            self.logger.error("Problem removing taxons: '%s'" % e)
+            traceback.print_exc()
+            db.psycopg2_connection.commit()
+        else:
+            db.psycopg2_connection.commit()
 
     def clear_data_for_taxon(self, taxon):
+        self.logger.info("Clearing data for taxon '%s'" % taxon)
+        cur = db.get_psycopg2_cursor();
+        try:
+            # Get TaxonDigests.
+            cur.execute("select td.id from taxon_digest td where td.taxon_id = %s", (taxon,))
+            taxon_digests = cur.fetchall()
+            if taxon_digests is not None:
+                # Delete TaxonDigestPeptides and TaxonDigests
+                self.logger.info("Deleting TaxonDigestPeptides and TaxonDigests")
+                for td in taxon_digests:
+                    cur.execute("delete from taxon_digest_peptide where taxon_digest_id = %s", (td[0],))
+                    cur.execute("delete from taxon_digest where id = %s", (td[0],))
 
-        # Get TaxonDigests.
-        taxon_digests = (
-            self.session.query(TaxonDigest)
-            .join(Taxon)
-            .filter(Taxon.id == taxon.id)
-        )
+            # Delete TaxonProteins.
+            self.logger.info("Deleting TaxonProteins")
+            cur.execute("delete from taxon_protein where taxon_id = %s", (taxon,))
 
-        # Delete TaxonDigestPeptides and TaxonDigests
-        for td in taxon_digests:
-            (
-                self.session.query(TaxonDigestPeptide)
-                .filter(TaxonDigestPeptide.taxon_digest_id == td.id)
-                .delete()
-            )
-            self.session.delete(td)
-
-        # Delete TaxonProteins.
-        (
-            self.session.query(TaxonProtein)
-            .filter(TaxonProtein.taxon_id == taxon.id)
-            .delete()
-        )
-
-        # Delete Taxon
-        self.session.query(Taxon).filter(Taxon.id == taxon.id).delete()
-
-        # Commit the deletes.
-        self.session.commit()
+            # Delete Taxon
+            cur.execute("delete from taxon where id = %s;", (taxon,))
+        except Exception as e:
+            self.logger.error("Problem removing '%s'" % taxon)
+            traceback.print_exc()
+        else:
+            # Commit the deletes.
+            db.psycopg2_connection.commit()
 
     def get_child_logger(self, name=None, base_msg=None, parent_logger=None):
         if not parent_logger:
