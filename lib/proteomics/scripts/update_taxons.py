@@ -37,7 +37,7 @@ def main():
                     cur.execute("update taxon set tax_oid = %s,  status = %s, study_name = %s,"
                                 "genome_name= %s, sequencing_center= %s, img_genome_id= %s, tax_form = %s, tax_domain = %s, tax_phylum= %s, tax_class= %s, "
                                 "tax_order= %s, tax_family= %s, tax_genus= %s, tax_species= %s, genome_size= %s, gene_count= %s, hierachy= %s, ncbi_id= %s, ncbi_url= %s, img_url= %s"
-                                "where id= %s", (long(row[0]), row[1],row[2],row[3],row[4],row[5],row[6],row[7],row[8],row[9],row[10],row[11],row[12],row[13],long(row[14]),long(row[15]), hierachy, long(row[17]), row[18], row[19], row[16]))
+                                "where id= %s", (long(row[0]), row[1],row[2],row[3],row[4],row[5],row[6],row[7],row[8],row[9],row[10],row[11],row[12],row[13],long(row[14]),long(row[15]), hierachy, long(row[17]), row[18], row[20], row[16]))
                     db.psycopg2_connection.commit()
 
 
