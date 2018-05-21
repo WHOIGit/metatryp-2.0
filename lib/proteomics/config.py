@@ -1,6 +1,7 @@
 import os
 import re
 
+
 # These cleavage rules are taken from:
 # http://web.expasy.org/peptide_cutter/peptidecutter_enzymes.html,
 # Included in this repo as docs/expasy_peptidecuttr_enzymes.html
@@ -89,10 +90,3 @@ DEFAULT_DIGEST_DEFINITION = {
     'max_acids': 255,
 }
 
-#SQLALCHEMY_DATABASE_URI = "postgresql://metatryp:Pr0t3om1cs@localhost:5432/proteomics"
-
-# secrets.py (if it exists) can override any of the items above.
-try:
-    from .secrets import *
-except:
-    pass
