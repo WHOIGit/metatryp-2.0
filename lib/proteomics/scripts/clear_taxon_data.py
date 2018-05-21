@@ -15,13 +15,11 @@ Assumptions:
 """
 Imports and setup.
 """
-from proteomics import db
-from proteomics import config
-from proteomics.models import (Protease, Digest)
+
 from proteomics.services.clear_taxon_data import ClearTaxonDataTask
 import argparse
 import logging
-import json
+
 
 """
 Process arguments.
@@ -65,7 +63,6 @@ def main():
     task = ClearTaxonDataTask(
         logger=logger,
         taxon_ids=taxon_ids,
-        get_connection=db.get_connection,
     )
     task.run()
     logger.info("Done.")
