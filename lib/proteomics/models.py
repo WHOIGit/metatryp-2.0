@@ -92,3 +92,50 @@ class Digest(object):
         self.max_missed_cleavages = max_missed_cleavages
         self.min_acids = min_acids
         self.max_acids = max_acids
+
+class Metagenome(object):
+    def __init__(self, id=None, name=None, sampling_date=None,
+                 depth=None, filter_size=None, filter_cutoff=None, expedition_number=None, sample_type=None):
+        self.id = id
+        self.name = name
+        self.sampling_date = sampling_date
+        self.depth = depth
+        self.filter_size = filter_size
+        self.filter_cutoff = filter_cutoff
+        self.expedition_number = expedition_number
+        self.sample_type = sample_type
+
+class Metagenome_Sequence(object):
+    def __init__(self, id=None, sequence=None, metagenome_id=None, sequence_id=None):
+        self.id = id
+        self.sequence =sequence
+        self.metagenome_id = metagenome_id
+        self.sequence_id = sequence_id
+
+class Metagenome_Sequence_Digest(object):
+    def __init__(self, id=None, metagenome_sequence=None, digest=None):
+        self.id = id
+        self.metagenome_sequence = metagenome_sequence
+        self.digest = digest
+
+class Metagenome_Annotation(object):
+    def __init__(self, id=None, metagenome_sequence_id=None, contig_taxonomy_id=None):
+        self.id = id
+        self.metagenome_sequence_id = metagenome_sequence_id
+        self.contig_taxonomy_id = contig_taxonomy_id
+        #will add additional annotation fields once list is finalized
+
+
+class Metagenome_Sequence_Peptide(object):
+    def __init__(self, id=None, metagenome_sequence_digest_id=None, peptide_id=None, count=None):
+        self.id = id
+        self.metagenome_sequence_digest_id =metagenome_sequence_digest_id
+        self.peptide_id = peptide_id
+        self.count = count
+
+class Metagenome_Taxon(object):
+    def __init__(self, id=None, contig_tax_id=None, contig_taxon=None, contig_tax_level=None):
+        self.id = id
+        self.contig_tax_id =contig_tax_id
+        self.contig_taxon = contig_taxon
+        self.contig_tax_level = contig_tax_level
