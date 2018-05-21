@@ -1,3 +1,4 @@
 proteomics.db.sqlite
 secrets.py
+db_config.py
 /.idea
