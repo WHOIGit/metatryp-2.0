@@ -1,97 +1,121 @@
 from proteomics import db
-import logging
 import csv
-from proteomics.models import Metagenome_Annotation
+import argparse
+import logging
+import time
 
 
-filename = "C:\\Users\\David\\Projects\\metatryp-2.0\\data_files\\ProteOMZ\\2018_0515_ProteOMZ_for_ingest.csv"
+argparser = argparse.ArgumentParser(description=('Import Annotation file'))
+argparser.add_argument('--annotation_file', help=('Annotation file.'))
 
-metagenome_annotations = {}
-metagenome_sequence_ids = []
-accession_numbers = []
-best_hit_annotations = []
-contig_tax_ids = []  #contig id?
-contig_taxonomies = []  #best hit species
-contig_tax_levels = []  # default to all being species
+#filename = "data_files/ProteOMZ/2018_0515_ProteOMZ_for_ingest.csv"
+def main():
+    start_time = time.time()
+    args = argparser.parse_args()
 
-#open the file and iterate through it line by line
-with open(filename, 'rb') as f:
-    reader = csv.reader(f)
-    try:
-        batch_count = 0;  #handle ingestion in batches to reduce number of hits on the db
-        for annot in reader:
+    logger = logging.getLogger('proteomz_annotations')
+    logger.addHandler(logging.StreamHandler())
+    logger.setLevel(logging.INFO)
 
-            accession_number = annot[0]
-            annotation = annot[1]
-            if annotation == '#N/A' or annotation == '':
-                annotation = None
+    filename = args.annotation_file
 
-            tax_level = "species" #this is specific to the proteomz dataset as all annotations are categorized at the species level
+    # Parse digest definition if given.
+    if filename:
+        logger.info(
+            "Starting annotation ingest")
+        metagenome_annotations = {}
+        metagenome_sequence_ids = []
+        accession_numbers = []
+        best_hit_annotations = []
+        orf_tax_ids = []  #contig id?
+        orf_taxonomies = []  #best hit species
+        orf_tax_levels = []  # default to all being species
 
-            taxon = annot[2]
-            if taxon == '#N/A' or taxon == '':
-                taxon = None
+        #open the file and iterate through it line by line
+        total_annotations = 0
+        with open(filename, 'rb') as f:
+            reader = csv.reader(f)
+            try:
+                batch_count = 0;  #handle ingestion in batches to reduce number of hits on the db
+                for annot in reader:
 
-            tax_id = annot[3]
-            if tax_id is not None:
-                if tax_id == '#N/A' or tax_id == '':
-                    tax_id = None
-                else:
-                    tax_id = int(tax_id)
+                    accession_number = annot[0]
+                    annotation = annot[1]
+                    if annotation == '#N/A' or annotation == '':
+                        annotation = None
 
-            #get all the annotations we need from the csv and save them into a dict for later use
-            ma = {"accession_number" : accession_number, "annotation" : annotation, "contig_tax_level" :  tax_level, "contig_tax_id" : tax_id, "contig_taxonomy" : taxon }
-            accession_numbers.append(accession_number)
-            metagenome_annotations[accession_number] = ma
+                    taxon = annot[2]
+                    if taxon == '#N/A' or taxon == '':
+                        taxon = None
 
-            batch_count = batch_count + 1
+                    tax_id = annot[3]
+                    if tax_id is not None:
+                        if tax_id == '#N/A' or tax_id == '':
+                            tax_id = None
+                        else:
+                            tax_id = int(tax_id)
 
-            if batch_count == 1000:
-                metagenome_sequence_ids = []
-                a_numbers = []
-                best_hit_annotations = []
-                contig_tax_ids = []  # contig id?
-                contig_taxonomies = []  # best hit species
-                contig_tax_levels = []  # default to all being species
-                #add uniprot ids ???????????????/
+                    tax_level = None
+                    if tax_id is not None:
+                        tax_level = "species"  # this is specific to the proteomz dataset as all annotations are categorized at the species level
 
-                #look up the already populated sequence id to match it to the accession number
-                cur = db.get_psycopg2_cursor()
-                cur.execute("select id, sequence_id from metagenome_sequence ms where ms.sequence_id = any(%s);",
-                                     (accession_numbers,))
+                    #get all the annotations we need from the csv and save them into a dict for later use
+                    ma = {"accession_number" : accession_number, "annotation" : annotation, "orf_tax_level" :  tax_level, "orf_tax_id" : tax_id, "orf_taxonomy" : taxon }
+                    accession_numbers.append(accession_number)
+                    metagenome_annotations[accession_number] = ma
 
-                db.psycopg2_connection.commit()
+                    batch_count = batch_count + 1
 
-                for seq_id, a_number in cur:
+                    if batch_count == 1000:
+                        metagenome_sequence_ids = []
+                        a_numbers = []
+                        best_hit_annotations = []
+                        orf_tax_ids = []  # contig id?
+                        orf_taxonomies = []  # best hit species
+                        orf_tax_levels = []  # default to all being species
+                        #add uniprot ids ???????????????/
 
-                    print seq_id
-                    if seq_id is not None:
-                        batch_count = batch_count+1
+                        #look up the already populated sequence id to match it to the accession number
+                        cur = db.get_psycopg2_cursor()
+                        cur.execute("select id, sequence_id from metagenome_sequence ms where ms.sequence_id = any(%s);",
+                                             (accession_numbers,))
 
-                        #populate the arrays that will be passed to postgres for a bulk insert
-                        metagenome_sequence_ids.append(seq_id)
-                        meta_annon = metagenome_annotations[a_number];
-                        #print meta_annon["accession_number"]
-                        metagenome_sequence_ids.append(seq_id)
-                        a_numbers.append(meta_annon["accession_number"])
-                        best_hit_annotations.append(meta_annon["annotation"])
-                        #print meta_annon["contig_tax_id"]
-                        contig_tax_ids.append(meta_annon["contig_tax_id"])
-                        contig_taxonomies.append(meta_annon["contig_taxonomy"])
-                        contig_tax_levels.append(meta_annon["contig_tax_level"])
+                        db.psycopg2_connection.commit()
 
-                cur = db.get_psycopg2_cursor()
-                cur.execute("select * from metagenome_annotation_insert(%s, %s, %s, %s, %s, %s);",
-                             (a_numbers, metagenome_sequence_ids,best_hit_annotations,
-                              contig_tax_ids, contig_taxonomies, contig_tax_levels))
+                        for seq_id, a_number in cur:
 
-                db.psycopg2_connection.commit()
+                            if seq_id is not None:
+                                batch_count = batch_count+1
 
-                # logger.info("annotations" % (the_annotations))
-                metagenome_annotations = {}
-                accession_numbers = []
-                batch_count = 0
+                                #populate the arrays that will be passed to postgres for a bulk insert
+                                metagenome_sequence_ids.append(seq_id)
+                                meta_annon = metagenome_annotations[a_number];
+                                #print meta_annon["accession_number"]
 
-    except csv.Error as e:
-        #logger.error('file %s, line %d: %s' % (filename, reader.line_num, e))
-        print e
+                                a_numbers.append(meta_annon["accession_number"])
+                                best_hit_annotations.append(meta_annon["annotation"])
+                                #print meta_annon["orf_tax_id"]
+                                orf_tax_ids.append(meta_annon["orf_tax_id"])
+                                orf_taxonomies.append(meta_annon["orf_taxonomy"])
+                                orf_tax_levels.append(meta_annon["orf_tax_level"])
+
+                        cur = db.get_psycopg2_cursor()
+                        cur.execute("select * from metagenome_annotation_insert(%s, %s, %s, %s, %s, %s);",
+                                    (a_numbers, metagenome_sequence_ids,best_hit_annotations,
+                                     orf_tax_ids, orf_taxonomies, orf_tax_levels))
+
+                        db.psycopg2_connection.commit()
+                        logger.info("ingested: %s annotations" % (total_annotations))
+                        # logger.info("annotations" % (the_annotations))
+                        metagenome_annotations = {}
+                        accession_numbers = []
+                        total_annotations = total_annotations+batch_count
+                        batch_count = 0
+
+
+            except csv.Error as e:
+                logger.error('file %s, line %d: %s' % (filename, reader.line_num, e))
+                print e
+
+if __name__ == '__main__':
+    main()
