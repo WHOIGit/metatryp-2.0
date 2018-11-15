@@ -106,7 +106,7 @@ def memoize(maxsize=1000):
         memo = {}
         @wraps(f)
         def func(*args, **kwargs):
-            key = (args, frozenset(kwargs.items()))
+            key = (args, frozenset(list(kwargs.items())))
             if key not in memo:
                 if len(memo) == maxsize:
                     memo.popitem()
@@ -191,7 +191,7 @@ def length(sequence, **kwargs):
             num_term_groups += 1
         return len(parsed_sequence) - num_term_groups
     elif isinstance(sequence, dict):
-        return sum(amount for aa, amount in sequence.items() 
+        return sum(amount for aa, amount in list(sequence.items()) 
                     if not is_term_mod(aa))
 
     raise Exception('Unsupported type of sequence.')
@@ -514,7 +514,7 @@ def cleave(sequence, rule, missed_cleavages=0, overlap=False):
     """
     peptides = set()
     cleavage_sites = deque([0], maxlen=missed_cleavages+2)
-    for i in chain(map(lambda x: x.end(), re.finditer(rule, sequence)),
+    for i in chain([x.end() for x in re.finditer(rule, sequence)],
                    [None]):
         cleavage_sites.append(i)
         for j in range(0, len(cleavage_sites)-1):
@@ -670,10 +670,10 @@ def isoforms(sequence, **kwargs):
 
     # Create a list of possible states for each group
     # Start with N-terminal mods and regular mods on the N-terminal residue
-    second = set(apply_mod(parsed[0], m) for m, r in variable_mods.items()
+    second = set(apply_mod(parsed[0], m) for m, r in list(variable_mods.items())
             if main(parsed[0])[1] in r and not is_term_mod(m)).union([parsed[0]])
     first = chain((apply_mod(group, mod) for group in second 
-            for mod, res in variable_mods.items()
+            for mod, res in list(variable_mods.items())
         if (mod.endswith('-') or mod.startswith('-') and len(parsed) == 1)
         and main(group)[1] in res), second)
     states = [set(first).union([parsed[0]])]
@@ -684,11 +684,11 @@ def isoforms(sequence, **kwargs):
         for group in parsed[1:-1])
     # Finally add C-terminal mods and regular mods on the C-terminal residue
     if len(parsed) > 1:
-        second = set(apply_mod(parsed[-1], m) for m, r in variable_mods.items()
+        second = set(apply_mod(parsed[-1], m) for m, r in list(variable_mods.items())
                     if main(parsed[-1])[1] in r and not is_term_mod(m)
                 ).union((parsed[-1],))
         first = chain((apply_mod(group, mod) for group in second 
-                for mod, res in variable_mods.items()
+                for mod, res in list(variable_mods.items())
             if mod.startswith('-') and main(group)[1] in res), second)
         states.append(set(first).union((parsed[-1],)))
 

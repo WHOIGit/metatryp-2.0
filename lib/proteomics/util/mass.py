@@ -9,6 +9,6 @@ def get_aa_sequence_mass(sequence, aa_masses=default_aa_masses):
     for residue in sequence:
         residue_histogram[residue] += 1
     mass = 0.0
-    for residue, count in residue_histogram.items():
+    for residue, count in list(residue_histogram.items()):
         mass += count * aa_masses[residue]
     return mass
