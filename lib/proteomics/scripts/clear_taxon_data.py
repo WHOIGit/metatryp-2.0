@@ -51,9 +51,9 @@ def main():
                         " --taxon-ids-file option")
 
     # Confirm deletion w/ the user.
-    print "You are about to delete the following taxons:\n"
-    print "\n".join(taxon_ids), "\n"
-    confirmation = raw_input("Type 'yes' and hit enter if this is really "
+    print("You are about to delete the following taxons:\n")
+    print("\n".join(taxon_ids), "\n")
+    confirmation = input("Type 'yes' and hit enter if this is really "
                              "what you want to do: ")
     if confirmation != 'yes':
         logger.info("You did not enter 'yes', quitting. Nothing has been done.")

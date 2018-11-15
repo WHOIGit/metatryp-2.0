@@ -35,6 +35,10 @@ argparser = argparse.ArgumentParser(description=(
 argparser.add_argument('--digest-def', help=(
     'JSON file containing a digest definition. If not provided, default digest'
     'will be used'))
+argparser.add_argument('--annotation-file', help=(
+    'File containing anotations.  Should be used in conjunction with annotation-source'  ))
+argparser.add_argument('--annotation-source', help=(
+    'Source of annotations. Valid values: "venter"'  ))
 argparser.add_argument('fasta_files', nargs='+',
                     help=('List of FASTA files containing protein sequences.'))
 """
@@ -61,6 +65,18 @@ def main():
     else:
         digest_def = config.DEFAULT_DIGEST_DEFINITION
 
+    # if args.annotation-file:
+    #     try:
+    #         directory = args.digest_dir
+    #
+    #         for filename in os.listdir(directory):
+    #             if filename.endswith(".faa") or filename.endswith(".fasta"):
+    #                 fullpath=os.path.join(directory, filename)
+    #                 logger.info("FASTA file: %s" % fullpath)
+    #                 fasta_files.append(fullpath)
+    #     except:
+    #         logger.exception("Could not parse digest_dir file '%s'" % (
+    #             args.digest_dir))
     # Get or create the digest.
     digest = get_digest(logger, digest_def)
     logger.info("Digest 2'%s'." % digest.id)

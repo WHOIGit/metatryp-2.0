@@ -84,7 +84,7 @@ def main():
         os.makedirs(args.output_dir)
 
     # Output tables.
-    for table_id, table in tables.items():
+    for table_id, table in list(tables.items()):
         table_file = os.path.join(args.output_dir, table_id + '.csv')
         logger.info("Writing '%s'..." % table_file)
         with open(table_file, 'wb') as f:

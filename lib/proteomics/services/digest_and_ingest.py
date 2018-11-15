@@ -183,7 +183,7 @@ class DigestAndIngestTask(object):
                 protein = Protein(id=record[0], sequence=record[1], mass=record[2])
                 digested_proteins[protein.sequence] = protein
             db.psycopg2_connection.commit()
-        for protein in existing_proteins.values():
+        for protein in list(existing_proteins.values()):
             if protein.sequence not in digested_proteins:
                 undigested_proteins[protein.sequence] = protein
 
@@ -231,7 +231,7 @@ class DigestAndIngestTask(object):
             peptide_counter = 0
             protein_digests = []
 
-            for protein in undigested_proteins.values():
+            for protein in list(undigested_proteins.values()):
                 protein_digest = ProteinDigest(protein=protein,
                                                digest=self.digest)
                 protein_digests.append(protein_digest)
@@ -295,7 +295,7 @@ class DigestAndIngestTask(object):
         digest_ids = []
         protein_digests = []
         protein_digests_dict = {}
-        for proteinId, data in batch.items():
+        for proteinId, data in list(batch.items()):
             for sequence in data['peptide_sequences']:
                 combined_peptide_sequences.add(sequence)
 
@@ -361,7 +361,7 @@ class DigestAndIngestTask(object):
         # Create histogram of peptide sequence occurences for each protein.
         num_peptide_instances = 0
 
-        for proteinId, data in protein_digests_dict.items():
+        for proteinId, data in list(protein_digests_dict.items()):
             peptides_histogram = defaultdict(int)
             for sequence in data['peptide_sequences']:
                 peptides_histogram[sequence] += 1
@@ -380,8 +380,8 @@ class DigestAndIngestTask(object):
         pdp_protein_digest_ids = []
         pdp_peptide_count = []
         pdp_counter = 0
-        for proteinId, data in protein_digests_dict.items():
-            for sequence, count in data['peptide_histogram'].items():
+        for proteinId, data in list(protein_digests_dict.items()):
+            for sequence, count in list(data['peptide_histogram'].items()):
                 pdp_counter += 1
                 peptide = existing_peptides[sequence]
                 pdp_peptide_ids.append(peptide.id)
