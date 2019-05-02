@@ -139,3 +139,22 @@ class Metagenome_Taxon(object):
         self.contig_tax_id =contig_tax_id
         self.contig_taxon = contig_taxon
         self.contig_tax_level = contig_tax_level
+
+class Specialized_Assembly(object):
+    def __init__(self, id=None, type_flag=None, status=None,
+                 study_name=None, genome_name=None, fasta_file_key=None, sequencing_center=None):
+        self.id = id
+        self.type_flag = type_flag
+        self.status = status
+        self.study_name = study_name
+        self.genome_name = genome_name
+        self.ffasta_file_key = fasta_file_key
+        self.sequencing_center = sequencing_center
+
+class Specialized_Assembly_Sequence(object):
+    def __init__(self, id=None, sequence=None, specialized_assembly_id=None, sequence_id=None):
+        self.id = id
+        self.sequence =sequence
+        self.specialized_assembly_id = specialized_assembly_id
+        self.sequence_id = sequence_id
+

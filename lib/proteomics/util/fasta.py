@@ -348,7 +348,7 @@ def write_decoy_db(source=None, output=None, mode='reverse', prefix='DECOY_',
 
 # auxiliary functions for parsing of FASTA headers
 def _split_pairs(s):
-    return dict(map(lambda x: x.strip(), x.split('='))
+    return dict([x.strip() for x in x.split('=')]
             for x in re.split(' (?=\w+=)', s.strip()))
 
 def _intify(d, keys):
@@ -398,7 +398,7 @@ def _parse_unimes(header):
 
 def _parse_spd(header):
     assert '=' not in header
-    ID, gene, d = map(lambda s: s.strip(), header.split('|'))
+    ID, gene, d = [s.strip() for s in header.split('|')]
     gid, taxon = gene.split('_')
     return {'id': ID, 'gene': gene, 'description': d,
             'taxon': taxon, 'gene_id': gid}
@@ -442,7 +442,7 @@ def parse(header, flavour='auto', parsers=None):
     # choose the format
     known = parsers or std_parsers
     if flavour.lower() == 'auto':
-        for fl, parser in known.items():
+        for fl, parser in list(known.items()):
             try:
                 return parser(header)
             except:

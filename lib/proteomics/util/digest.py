@@ -5,6 +5,7 @@ import logging
 import re
 
 
+
 def cleave(sequence, rule, logger=None, max_missed_cleavages=0, min_acids=None,
            max_acids=None):
 
@@ -35,7 +36,7 @@ def cleave(sequence, rule, logger=None, max_missed_cleavages=0, min_acids=None,
     """
     peptides = []
     cleavage_sites = deque([0], maxlen=max_missed_cleavages+2)
-    for i in chain(map(lambda x: x.end(), re.finditer(rule, sequence)),
+    for i in chain([x.end() for x in re.finditer(rule, sequence)],
                    [None]):
         cleavage_sites.append(i)
         for j in range(0, len(cleavage_sites)-1):

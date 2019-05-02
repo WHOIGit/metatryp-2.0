@@ -6,7 +6,7 @@ from gzip import GzipFile
 import sqlite3
 import re
 
-db_filename = "C:\\Users\David\Documents\WHOI Files\Metatryp\Venter\CN_2012_92pct_seqid_annotation_map_for_mak_saito.sqlite"
+db_filename = "C:\\Users\David\Projects\metatryp-2.0\data_files\ProteOMZ\2018_0515_ProteOMZ_annotations.csv"
 
 def open_venter_db(self, db_filename):
 
