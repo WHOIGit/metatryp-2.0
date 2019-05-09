@@ -1,0 +1,3 @@
+name: metatryp2_env
+dependencies:
+  - psycopg2
