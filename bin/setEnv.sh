@@ -5,8 +5,7 @@
 BASE_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )/.."
 echo $BASE_DIR
 # Activate virtualenv
-#source $BASE_DIR/py2.7/bin/activate
-conda activate $BASE_DIR/metatryp2_env/
+#conda activate $BASE_DIR/metatryp2_env/
 
 # Set python path to include proteomics
 export PYTHONPATH="$PYTHONPATH:$BASE_DIR/lib"
