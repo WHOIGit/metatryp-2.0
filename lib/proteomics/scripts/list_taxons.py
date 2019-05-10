@@ -4,7 +4,7 @@ import logging
 
 
 def main():
-    logger = logging.getLogger('redundancy_tables')
+    logger = logging.getLogger('taxons')
     logger.addHandler(logging.StreamHandler())
     logger.setLevel(logging.INFO)
 
