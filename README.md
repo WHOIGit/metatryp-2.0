@@ -52,6 +52,25 @@ You can query the database for exact and fuzzy matches. e.g.:
 ````
 bin/query_by_sequence.sh --sequence MGFPCNR --max-distance 1
 ````
+### 2: Generate redundancy tables
+1.: See available taxon ids by querying DB: e.g. 
+````
+bin/list_taxon_ids.sh
+````
+2.: Generate redundancy tables for groups of taxons e.g.
+````
+bin/generate_redundancy_tables.sh --taxon-ids syn8102 syn7502 syn7503 --output-dir exampleRedundancyTables
+````
+
+Note that you can also specify a file that contains a list of taxon IDs, e.g
+
+````
+bin/generate_redundancy_tables.sh --taxon-id-file taxon_id_list.txt --output-dir exampleRedundancyTables
+````
+
+3.: View resulting files in exampleRedundancyTables
+    - counts.csv contains counts of redundant peptides
+    - percents.csv contains the values in counts.csv, divided by the number of unique peptides in the *union* of digestions of a taxa pair.
 
 ### 3.(optional, expected to occur rarely): Clear data for a given set of taxa.
 If you wish to **delete** data for a given set of taxa in the db, run a command like this:
