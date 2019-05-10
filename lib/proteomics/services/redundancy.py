@@ -6,26 +6,16 @@ from proteomics import db
 
 def count_common_peptides(taxon_digests=[], logger=None):
     taxon_digest_ids = [taxon_digest.id for taxon_digest in taxon_digests]
-
     cur = db.get_psycopg2_cursor();
-    cur.execute("SELECT count(taxon_digest.id) AS count_1,taxon_digest_peptide.peptide_id AS peptide_id " \
-        "FROM taxon_digest_peptide JOIN taxon_digest ON taxon_digest.id = taxon_digest_peptide.taxon_digest_id " \
-        "WHERE taxon_digest.id = ANY(%s) GROUP BY taxon_digest_peptide.peptide_id "\
-        "HAVING count(taxon_digest.id) = %s;", (taxon_digest_ids, len(taxon_digests)))
-
+    cur.execute("select * from taxon_count_common_peptides(%s, %s)", (taxon_digest_ids, len(taxon_digests)))
     count = len(cur.fetchall());
     db.psycopg2_connection.commit()
-
     return count
 
 def count_peptide_union(taxon_digests=[], logger=None):
-    logger.info("In Union")
     taxon_digest_ids = [taxon_digest.id for taxon_digest in taxon_digests]
     cur = db.get_psycopg2_cursor();
-    cur.execute("SELECT taxon_digest_peptide.peptide_id AS peptide_id "\
-        "FROM taxon_digest_peptide JOIN taxon_digest ON taxon_digest.id = taxon_digest_peptide.taxon_digest_id "\
-        "WHERE taxon_digest.id = ANY(%s) GROUP BY taxon_digest_peptide.peptide_id ", (taxon_digest_ids,))
-
+    cur.execute("select * from taxon_count_peptide_union(%s)", (taxon_digest_ids,))
     count = len(cur.fetchall());
     db.psycopg2_connection.commit()
     return count
