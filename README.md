@@ -68,9 +68,13 @@ bin/query_by_sequence.sh --sequence MGFPCNR --type all
 will query across genomes, metagenomes and specialized assemblies
 
 --type parameters (default is genomes)
+
 g - genomes
+
 m - meta
+
 sa - specialized assemblies
+
 all - all types
 
 ### 3: Generate redundancy tables
