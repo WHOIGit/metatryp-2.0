@@ -58,7 +58,7 @@ You can query by other types such as metagenomes or specialized assemblies by us
 
 For example:
 ````
-bin/query_by_sequence.sh --sequence MGFPCNR --type sa
+bin/query_by_sequence.sh --sequence LSHQAIAEAIGSTR --type sa
 ````
 will query for Specialized Assemblies such as MAGs.
 
