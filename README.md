@@ -48,11 +48,32 @@ This script reads the FASTA files, and runs digestions on their sequences. You s
 
 
 ### 2.  Query sequences for taxon matches:
-You can query the database for exact and fuzzy matches. e.g.:
+You can query the database for exact and fuzzy matches*. e.g.:
 ````
 bin/query_by_sequence.sh --sequence MGFPCNR --max-distance 1
 ````
-### 2: Generate redundancy tables
+*fuzzy matches is currently not working
+
+You can query by other types such as metagenomes or specialized assemblies by using the --type parameter
+
+For example:
+````
+bin/query_by_sequence.sh --sequence MGFPCNR --type sa
+````
+will query for Specialized Assemblies such as MAGs.
+
+````
+bin/query_by_sequence.sh --sequence MGFPCNR --type all
+````
+will query across genomes, metagenomes and specialized assemblies
+
+--type parameters (default is genomes)
+g - genomes
+m - meta
+sa - specialized assemblies
+all - all types
+
+### 3: Generate redundancy tables
 1.: See available taxon ids by querying DB: e.g. 
 ````
 bin/list_taxon_ids.sh
