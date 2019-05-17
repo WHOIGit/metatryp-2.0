@@ -17,7 +17,6 @@ from proteomics import config
 from proteomics import db
 from proteomics.models import (Specialized_Assembly)
 from proteomics.services import redundancy
-from proteomics.util import digest_utils
 import argparse
 import logging
 import csv
@@ -61,8 +60,7 @@ def main():
         with open(args.sa_id_file, 'r') as f:
             sa_ids = [row[0] for row in csv.reader(f)]
     logger.info("Specialized Assembly Ids: %s" % (sa_ids))
-    # Get the digest.
-    digest = digest_utils.get_digest(logger, config.DEFAULT_DIGEST_DEFINITION)
+
     cur = db.get_psycopg2_cursor();
 
     cur.execute( "select sa.id, sa.genome_name from specialized_assembly sa where sa.genome_name = any(%s);", (sa_ids,))

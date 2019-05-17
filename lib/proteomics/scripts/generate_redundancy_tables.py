@@ -62,8 +62,7 @@ def main():
         with open(args.taxon_id_file, 'r') as f:
             taxon_ids = [row[0] for row in csv.reader(f)]
     logger.info("Taxon Ids: %s" % (taxon_ids))
-    # Get the digest.
-    digest = get_digest(logger, config.DEFAULT_DIGEST_DEFINITION)
+
     cur = db.get_psycopg2_cursor();
     cur.execute( "select * from taxon_digest td where td.taxon_id in (select t.id from taxon t where t.id = any(%s));", (taxon_ids,))
 
@@ -96,52 +95,6 @@ def main():
 
     logger.info("Done.")
 
-""" Helper methods. """
-def get_digest(logger, digest_def):
-    """ Fetch or create a digest from a digest definition."""
-    #session = db.get_session()
-
-    # Get or create protease.
-    protease = Protease(**digest_def['protease'])
-    protease_id = str(digest_def['protease']['id'])
-    cur = db.get_psycopg2_cursor()
-    cur.execute("select * from protease where protease.id=%s;", (protease_id,))
-    results = cur.fetchone()
-
-    if results is None:
-        logger.info(
-            "No protease exists for the given definition, creating...")
-    else:
-        protease = Protease(id=results[0], cleavage_rule=results[1])
-    db.psycopg2_connection.commit()
-
-    # Get or create digest object.
-    cur = db.get_psycopg2_cursor()
-
-    #not all possible digestion parameters will have a value so build the query to account for this
-    query_params = [protease.id]
-    digest_query = "select * from digest where digest.protease_id = %s";
-    if digest_def.get('max_missed_cleavages') is not None:
-        digest_query = digest_query + " and digest.max_missed_cleavages = %s "
-        query_params.append(digest_def.get('max_missed_cleavages'))
-    if digest_def.get('min_acids') is not None:
-        digest_query = digest_query + " and digest.min_acids = %s "
-        query_params.append(digest_def.get('min_acids'))
-    if digest_def.get('max_acids') is not None:
-        digest_query = digest_query + " and digest.max_acids = %s "
-        query_params.append(digest_def.get('max_acids'))
-
-    cur.execute(digest_query, (query_params))
-    results = cur.fetchone()
-    db.psycopg2_connection.commit
-    if results is None:
-    #if not digest:
-        logger.info(
-            "No digest exists for the given definition.")
-    else:
-        digest = Digest(id=results[0], protease = protease, max_missed_cleavages=results[2], min_acids = results[3], max_acids = results[4])
-    db.psycopg2_connection.commit()
-    return digest
 
 if __name__ == '__main__':
     main()
