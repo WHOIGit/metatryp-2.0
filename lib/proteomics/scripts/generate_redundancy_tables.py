@@ -59,7 +59,7 @@ def main():
     if args.taxon_ids:
         taxon_ids = args.taxon_ids
     else:
-        with open(args.taxon_id_file, 'rb') as f:
+        with open(args.taxon_id_file, 'r') as f:
             taxon_ids = [row[0] for row in csv.reader(f)]
     logger.info("Taxon Ids: %s" % (taxon_ids))
     # Get the digest.
