@@ -77,7 +77,7 @@ sa - specialized assemblies
 
 all - all types
 
-### 3: Generate redundancy tables
+### 3: Generate redundancy tables for genomes
 1.: See available taxon ids by querying DB: e.g. 
 ````
 bin/list_taxon_ids.sh
@@ -97,10 +97,26 @@ bin/generate_redundancy_tables.sh --taxon-id-file taxon_id_list.txt --output-dir
     - counts.csv contains counts of redundant peptides
     - percents.csv contains the values in counts.csv, divided by the number of unique peptides in the *union* of digestions of a taxa pair.
 
-### 3.(optional, expected to occur rarely): Clear data for a given set of taxa.
-If you wish to **delete** data for a given set of taxa in the db, run a command like this:
+### 4: Generate redundancy tables for Specialized Assemblies (i.e. MAGs)
+1.: See available specialized assemblies by querying DB: e.g. 
 ````
-bin/clear_taxon_data.sh --taxon-ids croc5801
+bin/list_specialized_assemblies.sh
+````
+2.: Generate redundancy tables for groups of specialized assemblies e.g.
+````
+bin/generate_redundancy_tables_specialized_assembly.sh --sa-ids TARA_RED_MAG_00113 TARA_SOC_MAG_00005 --output-dir exampleRedundancyTables
+````
+
+Note that you can also specify a file that contains a list of specialized assembly IDs, e.g
+
+````
+bin/generate_redundancy_tables_specialized_assembly.sh --sa-id-file sa_id_list.txt --output-dir exampleRedundancyTables
+````
+
+3.: View resulting files in exampleRedundancyTables
+    - counts.csv contains counts of redundant peptides
+    - percents.csv contains the values in counts.csv, divided by the number of unique peptides in the *union* of digestions of a specialized assembly pair.
+
 ````
 
 
