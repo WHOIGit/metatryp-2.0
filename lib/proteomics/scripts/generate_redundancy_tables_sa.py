@@ -58,7 +58,7 @@ def main():
     if args.sa_ids:
         sa_ids = args.sa_ids
     else:
-        with open(args.sa_id_file, 'rb') as f:
+        with open(args.sa_id_file, 'r') as f:
             sa_ids = [row[0] for row in csv.reader(f)]
     logger.info("Specialized Assembly Ids: %s" % (sa_ids))
     # Get the digest.
