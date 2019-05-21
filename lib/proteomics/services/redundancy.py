@@ -1,6 +1,7 @@
 import itertools
 import logging
 from proteomics import db
+from proteomics.models import Redundancy_Helper
 
 def count_common_peptides(taxon_digests=[], logger=None):
 
@@ -11,8 +12,22 @@ def count_common_peptides(taxon_digests=[], logger=None):
     db.psycopg2_connection.commit()
     return count
 
+def count_common_peptides_ids(taxon_digest_ids=[], logger=None):
+    cur = db.get_psycopg2_cursor();
+    cur.execute("select * from taxon_count_common_peptides(%s, %s)", (taxon_digest_ids, len(taxon_digest_ids)))
+    count = len(cur.fetchall());
+    db.psycopg2_connection.commit()
+    return count
+
 def count_peptide_union(taxon_digests=[], logger=None):
     taxon_digest_ids = [taxon_digest.id for taxon_digest in taxon_digests]
+    cur = db.get_psycopg2_cursor();
+    cur.execute("select * from taxon_count_peptide_union(%s)", (taxon_digest_ids,))
+    count = len(cur.fetchall());
+    db.psycopg2_connection.commit()
+    return count
+
+def count_peptide_union_ids(taxon_digest_ids=[], logger=None):
     cur = db.get_psycopg2_cursor();
     cur.execute("select * from taxon_count_peptide_union(%s)", (taxon_digest_ids,))
     count = len(cur.fetchall());
@@ -27,6 +42,13 @@ def count_common_peptides_sa(specialized_assemblies=[], logger=None):
     db.psycopg2_connection.commit()
     return count
 
+def count_common_peptides_sa_ids(sa_ids=[], logger=None):
+    cur = db.get_psycopg2_cursor();
+    cur.execute("select * from sadp_count_common_peptides(%s, %s)", (sa_ids, len(sa_ids)))
+    count = len(cur.fetchall());
+    db.psycopg2_connection.commit()
+    return count
+
 def count_peptide_union_sa(specialized_assemblies=[], logger=None):
     sa_ids = [sa.id for sa in specialized_assemblies]
     cur = db.get_psycopg2_cursor();
@@ -34,7 +56,53 @@ def count_peptide_union_sa(specialized_assemblies=[], logger=None):
     count = len(cur.fetchall());
     db.psycopg2_connection.commit()
     return count
+def count_peptide_union_sa_ids(sa_ids=[], logger=None):
+    cur = db.get_psycopg2_cursor();
+    cur.execute("select * from sadp_count_peptide_union(%s)", (sa_ids,))
+    count = len(cur.fetchall());
+    db.psycopg2_connection.commit()
+    return count
 
+def count_common_peptides_combined(sa_ids=[], td_ids=[], logger=None):
+    logger.info("In Count Common Pepdides Combined for SA %s and TD %s" % (sa_ids, td_ids))
+    cur = db.get_psycopg2_cursor();
+    #cur.execute("select * from sa_taxon_count_common_peptides(%s, %s, %s)", (sa_id, td_id, 2))
+    cur.execute("SELECT count(peptide_id), peptide_id from "\
+        "((SELECT distinct sadp.peptide_id AS peptide_id "\
+        "FROM specialized_assembly_digest_peptide sadp "\
+        "JOIN specialized_assembly_sequence ON specialized_assembly_sequence.id = sadp.specialized_assembly_sequence_id "\
+        "join specialized_assembly on specialized_assembly.id = specialized_assembly_sequence.specialized_assembly_id "\
+        "WHERE specialized_assembly_sequence.specialized_assembly_id = any(array[%s])) "\
+        "union all "\
+        "(SELECT distinct taxon_digest_peptide.peptide_id AS peptide_id "\
+        "FROM taxon_digest_peptide JOIN taxon_digest ON taxon_digest.id = taxon_digest_peptide.taxon_digest_id "\
+        "WHERE taxon_digest.id = any(array[%s]))) as peptide_unions "\
+        "group by peptide_id "\
+        "having count(peptide_id) = %s;", (sa_ids, td_ids, 2))
+    count = len(cur.fetchall());
+    logger.info("Combined Count %s " % (count))
+    db.psycopg2_connection.commit()
+    return count
+
+def count_peptide_union_combined(sa_ids=[], td_ids=[], logger=None):
+    logger.info("In Union Common Pepdides Combined for SA %s and TD %s" % (sa_ids, td_ids))
+    cur = db.get_psycopg2_cursor();
+    #cur.execute("select * from sa_taxon_count_peptide_union(%s, %s)", (sa_id, td_id))
+    cur.execute("SELECT peptide_id from "\
+        "((SELECT distinct sadp.peptide_id AS peptide_id "\
+	    "FROM specialized_assembly_digest_peptide sadp "\
+	    "JOIN specialized_assembly_sequence ON specialized_assembly_sequence.id = sadp.specialized_assembly_sequence_id "\
+	    "join specialized_assembly on specialized_assembly.id = specialized_assembly_sequence.specialized_assembly_id "\
+	    "WHERE specialized_assembly_sequence.specialized_assembly_id = any(array[%s])) "\
+	    "union all "\
+        "(SELECT distinct taxon_digest_peptide.peptide_id AS peptide_id "\
+	    "FROM taxon_digest_peptide JOIN taxon_digest ON taxon_digest.id = taxon_digest_peptide.taxon_digest_id "\
+	    "WHERE taxon_digest.id = any(array[%s]))) as peptide_unions "\
+        "group by peptide_id;", (sa_ids, td_ids))
+    count = len(cur.fetchall());
+    logger.info("Union Count %s " % (count))
+    db.psycopg2_connection.commit()
+    return count
 
 def generate_redundancy_tables(taxon_digests=[], logger=None):
     """
@@ -161,8 +229,9 @@ def generate_redundancy_tables_sa(specialized_assemblies=[], logger=None):
             "(specialized assembly: %s)" % (
                 specialized_assembly.genome_name
             ) for specialized_assembly in combo])))
-        # Sorted combo for keying.
+                # Sorted combo for keying.
         combo_key = get_sa_combo_key(combo)
+        logger.info("Key: %s" % str(combo_key))
         # Get intersection counts and union percentages.
         num_in_intersection = count_common_peptides_sa(combo, logger)
         num_in_union = count_peptide_union_sa(combo, logger)
@@ -227,6 +296,147 @@ def generate_redundancy_tables_sa(specialized_assemblies=[], logger=None):
 
     return tables
 
+def generate_redundancy_tables_combined(taxon_digests=[], specialized_assemblies=[], logger=None):
+    """
+       Generates tables of:
+           - counts: counts of peptides in common between pairs of specialized assemblies
+           - union percents: |td1 ^ td2|/|td1 + td2|
+           - pairwise percents: |td1 ^ td2|/|td1|
+       Needs to be revised if more than one digest is ever used
+       """
+
+    if not logger:
+        logger = logging.getLogger()
+
+    # Generate pairs.
+   # combinations = [c for c in itertools.combinations(specialized_assemblies, 2)]
+    combinations = []
+    td_helpers = []
+    sa_helpers =[]
+    for td in taxon_digests:
+        td_helpers.append(Redundancy_Helper(td.id,td.taxon,"Genome"))
+    for sa in specialized_assemblies:
+        sa_helpers.append(Redundancy_Helper(sa.id,sa.genome_name,"Specialized Assembly"))
+
+    redundancy_helpers = td_helpers + sa_helpers
+    combinations = [c for c in itertools.combinations(redundancy_helpers, 2)]
+    # Get redundancies and sums by querying db.
+    # Calculate percents.
+    values = {
+        'intersection_counts': {},
+        'union_percents': {},
+        'individual_percents': {},
+        'individual_counts': {},
+    }
+
+    for combo in combinations:
+        td_ids = []
+        sa_ids = []
+        for rh in combo:
+            if rh.type == "Genome":
+                td_ids.append(rh.id)
+            elif rh.type == "Specialized Assembly":
+                sa_ids.append(rh.id)
+        if len(td_ids) == 2:
+            # check the taxaon digests
+            combinations.remove(combo)
+            # num_in_intersection = count_common_peptides_ids(td_ids, logger)
+            # num_in_union = count_peptide_union_ids(td_ids, logger)
+        elif len(sa_ids) == 2:
+            # check the specialized assemblies
+            combinations.remove(combo)
+            # num_in_intersection = count_common_peptides_sa_ids(sa_ids, logger)
+            # num_in_union = count_peptide_union_sa_ids(sa_ids, logger)
+    for combo in combinations:
+        s_ids = []
+        t_ids = []
+        logger.info("Counting peptides in common for %s" % (str([
+            "(specialized assembly: %s)" % (
+                rh.genome_name
+            ) for rh in combo])))
+        # Sorted combo for keying.
+        combo_key = get_combined_combo_key(combo)
+        logger.info("Key: %s" % str(combo_key))
+
+        # Get intersection counts and union percentages.
+        for rh in combo:
+            if rh.type == "Genome":
+                t_ids.append(rh.id)
+            elif rh.type == "Specialized Assembly":
+                s_ids.append(rh.id)
+
+        #get the combined results
+        num_in_intersection = count_common_peptides_combined(s_ids, t_ids, logger)
+        logger.info("Num in intersect: %s " % num_in_intersection)
+        num_in_union = count_peptide_union_combined(s_ids, t_ids, logger)
+        if num_in_union:
+            percent_in_common = 100.0 * num_in_intersection / num_in_union
+        else:
+            percent_in_common = 0
+        values['intersection_counts'][combo_key] = num_in_intersection
+        values['union_percents'][combo_key] = percent_in_common
+        #Get individual counts and percentages.
+        for rh in combo:
+            logger.info("RH: %s" % rh)
+            if rh not in values['individual_counts']:
+                if rh.type == "Genome":
+                    values['individual_counts'][rh] = count_common_peptides_ids([rh.id], logger)
+                elif rh.type == "Specialized Assembly":
+                    values['individual_counts'][rh] = count_common_peptides_sa_ids([rh.id], logger)
+            num_in_td = values['individual_counts'][rh]
+            if num_in_td:
+                values['individual_percents'][(rh, combo_key,)] = \
+                    100.0 * num_in_intersection / num_in_td
+
+    # Sort specialized assemblies.
+    sorted_redundancy_helpers = sorted(redundancy_helpers, key=lambda rh: rh.genome_name)
+
+    # Assemble tables.
+    tables = {
+        'intersection_counts': [],
+        'union_percents': [],
+        'individual_percents': [],
+        'individual_counts': []
+    }
+
+    # Assemble individual counts table.
+    logger.info("Sorted Redundancy Helpers: %s" % sorted_redundancy_helpers)
+    for i, rh in enumerate(sorted_redundancy_helpers):
+
+        label = "|%s|" % rh.genome_name
+        value = values['individual_counts'][rh]
+        tables['individual_counts'].append([label, value])
+
+    # Assemble intersection_count and union_pct tables.
+    # These tables have one row per combination.
+    for sa1, sa2 in combinations:
+        combo_key = get_combined_combo_key((sa1, sa2,))
+        # Intersection count.
+        intersection_label = '|%s ^ %s|' % (sa1.genome_name, sa2.genome_name)
+        intersection_count = values['intersection_counts'][combo_key]
+        tables['intersection_counts'].append(
+            [intersection_label, intersection_count])
+        # Union percents.
+        union_label = '|%s U %s|' % (sa1.genome_name, sa2.genome_name)
+        union_pct_label = "%s/%s" % (intersection_label, union_label)
+        union_pct = values['union_percents'][combo_key]
+        tables['union_percents'].append([union_pct_label, union_pct])
+
+    # Assemble individual percents table.
+    # This table has one row per permutation.
+    for i, sa1 in enumerate(sorted_redundancy_helpers):
+        for j, sa2 in enumerate(sorted_redundancy_helpers):
+            combo_key = get_sa_combo_key((sa1, sa2,))
+            pct_key = (sa1, combo_key,)
+            if pct_key in values['individual_percents']:
+                label = "|%s ^ %s|/|%s|" % (sa1.genome_name, sa2.genome_name,
+                                            sa1.genome_name)
+                value = values['individual_percents'][pct_key]
+                tables['individual_percents'].append([label, value])
+
+    return tables
+
+
 def get_td_combo_key(td_combo):
     """ Get a key for a taxon digest combo."""
     return tuple(sorted(td_combo, key=lambda td: td.taxon))
@@ -234,3 +444,7 @@ def get_td_combo_key(td_combo):
 def get_sa_combo_key(sa_combo):
     """ Get a key for a specialized assemblies combo."""
     return tuple(sorted(sa_combo, key=lambda sa: sa.genome_name))
+
+def get_combined_combo_key(redundancy_combo):
+    """ Get a key for a redundancy helper combo."""
+    return tuple(sorted(redundancy_combo, key=lambda redundancy: redundancy.genome_name))
