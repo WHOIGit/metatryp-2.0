@@ -158,3 +158,17 @@ class Specialized_Assembly_Sequence(object):
         self.specialized_assembly_id = specialized_assembly_id
         self.sequence_id = sequence_id
 
+class Specialized_Assembly_Digest_Peptide(object):
+    def __init__(self, id=None, peptide_id=None, specialized_assembly_sequence_id=None, count=None, digest_id_id=None):
+        self.id = id
+        self.peptide_id = peptide_id
+        self.specialized_assembly_sequence_id = specialized_assembly_sequence_id
+        self.count = count
+        self.digest_id = digest_id_id
+
+class Redundancy_Helper(object):
+    def __init__(self, id=None, genome_name=None, type = None):
+        self.id = id
+        self.genome_name = genome_name
+        self.type = type
+
