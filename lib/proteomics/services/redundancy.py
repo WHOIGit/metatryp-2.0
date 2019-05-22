@@ -1,7 +1,7 @@
 import itertools
 import logging
 from proteomics import db
-from proteomics.models import Redundancy_Helper
+from proteomics.models import Redundancy_Helper,Specialized_Assembly
 
 def count_common_peptides(taxon_digests=[], logger=None):
 
@@ -224,14 +224,20 @@ def generate_redundancy_tables_sa(specialized_assemblies=[], logger=None):
     }
     redundancies = {}
     percents = {}
+    count = 0
+    current_sa = Specialized_Assembly(id=None)
     for combo in combinations:
+        if combo[0].id != current_sa.id or current_sa == None:
+            current_sa = combo[0]
+            count = count+1
+            logger.info("MAG Count %s" % count)
         logger.info("Counting peptides in common for %s" % (str([
             "(specialized assembly: %s)" % (
                 specialized_assembly.genome_name
             ) for specialized_assembly in combo])))
                 # Sorted combo for keying.
         combo_key = get_sa_combo_key(combo)
-        logger.info("Key: %s" % str(combo_key))
+
         # Get intersection counts and union percentages.
         num_in_intersection = count_common_peptides_sa(combo, logger)
         num_in_union = count_peptide_union_sa(combo, logger)
@@ -314,8 +320,10 @@ def generate_redundancy_tables_combined(taxon_digests=[], specialized_assemblies
     td_helpers = []
     sa_helpers =[]
     for td in taxon_digests:
+        logger.info("TD: %s " % td.id)
         td_helpers.append(Redundancy_Helper(td.id,td.taxon,"Genome"))
     for sa in specialized_assemblies:
+        logger.info("SA: %s " % sa.id)
         sa_helpers.append(Redundancy_Helper(sa.id,sa.genome_name,"Specialized Assembly"))
 
     redundancy_helpers = td_helpers + sa_helpers
@@ -328,7 +336,7 @@ def generate_redundancy_tables_combined(taxon_digests=[], specialized_assemblies
         'individual_percents': {},
         'individual_counts': {},
     }
-
+    logger.info("Before len: %s" % len(combinations))
     for combo in combinations_orig:
         td_ids = []
         sa_ids = []
@@ -350,8 +358,12 @@ def generate_redundancy_tables_combined(taxon_digests=[], specialized_assemblies
     for combo in combinations:
         s_ids = []
         t_ids = []
+        if combo[0].id != current_sa.id or current_sa == None:
+            current_sa = combo[0]
+            count = count+1
+            logger.info("MAG Count %s" % count)
         logger.info("Counting peptides in common for %s" % (str([
-            "(specialized assembly: %s)" % (
+            "(genome: %s)" % (
                 rh.genome_name
             ) for rh in combo])))
         # Sorted combo for keying.
