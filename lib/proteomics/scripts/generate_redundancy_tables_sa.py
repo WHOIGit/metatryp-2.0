@@ -61,6 +61,10 @@ def main():
             sa_ids = [row[0] for row in csv.reader(f)]
     logger.info("Specialized Assembly Ids: %s" % (sa_ids))
 
+    # Create output dir if it does not exist.
+    if not os.path.exists(args.output_dir):
+        os.makedirs(args.output_dir)
+
     cur = db.get_psycopg2_cursor();
 
     cur.execute( "select sa.id, sa.genome_name from specialized_assembly sa where sa.genome_name = any(%s);", (sa_ids,))
@@ -77,13 +81,11 @@ def main():
 
 
     # Generate the redundancy tables.
-    tables = redundancy.generate_redundancy_tables_sa(sa_digests, logger=logger)
+    tables = redundancy.generate_redundancy_tables_sa(sa_digests,  logger=logger)
 
-    # Create output dir if it does not exist.
-    if not os.path.exists(args.output_dir):
-        os.makedirs(args.output_dir)
 
-    # Output tables.
+
+    #Output tables.
     for table_id, table in list(tables.items()):
         table_file = os.path.join(args.output_dir, table_id + '.csv')
         logger.info("Writing '%s'..." % table_file)
