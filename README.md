@@ -27,12 +27,14 @@ The analysis tools consist of:
 
 ## Installation
 
-These instructions assume that you are running within a unix environment that has python3.X, and that Anaconda or Miniconda is installed on the system.
+These instructions assume that you are running within a unix environment that has python3.X and PostgreSQL installed. Anaconda or Miniconda also needs to be installed on the system.
 
 1. Download this Repository: https://github.com/WHOIGit/metatryp-2.0/archive/master.zip
 2. Unpack the Repository into a folder: Unzip it.
-3. Create a virtual environment: Navigate into the unzipped directory you created above. It should contain this README.md file. Then run this command: conda env create -f environment.yml . This will create a new conda virtual environment directory named 'metatryp2_env'.
-4. Activate the environment: conda activate metatryp2_env
+3. Navigate to the root of the unpacked folder and update conf/db_config.py to fill in the missing database connection information.  These settings will vary from system to system.
+    The fields that need to be populated are DB_NAME, DB_Pass and DB_USER
+4. Create a virtual environment: Navigate into the unzipped directory you created above. It should contain this README.md file. Then run this command: conda env create -f environment.yml . This will create a new conda virtual environment directory named 'metatryp2_env'.
+5. Activate the environment: conda activate metatryp2_env
 
 Further instructions to follow.
 
