@@ -1,3 +1,8 @@
 name: metatryp2_env
+channels:
+  - bioconda
+  - defaults
 dependencies:
   - psycopg2
+  - biopython=1.76
+  - pandas=1.0.3
