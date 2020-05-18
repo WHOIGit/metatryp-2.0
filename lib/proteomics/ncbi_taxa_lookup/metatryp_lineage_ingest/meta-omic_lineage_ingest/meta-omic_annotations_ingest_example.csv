@@ -1,0 +1,4 @@
+orf_id,contig_taxon_name,contig_NCBI_taxon_id,orf_taxon_name,orf_NCBI_taxon_id
+>node_5789632_orf_2,Methanocaldococcus,196118,Methanocaldococcus jannaschii,2190
+>node_9872348_orf_1,,,Natronomonas,63743
+>node_327568_orf_7,Planctomyces,118,Planctomyces maris,122

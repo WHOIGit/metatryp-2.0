@@ -1,0 +1,5 @@
+Taxon_fasta_file_name,Taxon_name,NCBI_taxon_id,Group,Kingdom,Phylum,Class,Order,Family,Genus,Species,NCBI_taxon_name
+Nitrosopelagicus_CN25_NCBI.faa,Nitrosopelagicus brevis 1,1410606,cellular organisms,Archaea,Thaumarchaeota,Unclassified Thaumarchaeota,Unclassified Thaumarchaeota,Unclassified Thaumarchaeota,Candidatus Nitrosopelagicus,Candidatus Nitrosopelagicus brevis,Candidatus Nitrosopelagicus brevis
+UCYN-A.fasta,Cyanobacterium sp. UCYN-A2,95881,cellular organisms,Bacteria,Cyanobacteria,Unclassified Cyanobacteria,Chroococcales,Unclassified Chroococcales,Unclassified Chroococcales,Unclassified Chroococcales,unclassified Chroococcales (miscellaneous)
+MIT9312.fasta,Prochlorococcus marinus MIT9312,74546,cellular organisms,Bacteria,Cyanobacteria,Unclassified Cyanobacteria,Synechococcales,Prochloraceae,Prochlorococcus,Prochlorococcus marinus,Prochlorococcus marinus str. MIT 9312
+Carnobacterium_sp_AT7.faa,Carnobacterium sp. AT7,333990,cellular organisms,Bacteria,Firmicutes,Bacilli,Lactobacillales,Carnobacteriaceae,Carnobacterium,Carnobacterium sp. AT7,Carnobacterium sp. AT7
