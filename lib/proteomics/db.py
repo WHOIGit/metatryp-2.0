@@ -47,4 +47,4 @@ def get_batched_results(q, batch_size):
 
             yield row
 
-psycopg2_connection =  psycopg2.connect("user="+db_config.DB_USER + " password=" + db_config.DB_PASS+ " host=" + db_config.DB_HOST + " dbname="+ db_config.DB_NAME + " sslmode=prefer")
+psycopg2_connection =  psycopg2.connect("user="+db_config.DB_USER + " password=" + db_config.DB_PASS+ " host=" + db_config.DB_HOST + " port=" + db_config.DB_PORT + " dbname="+ db_config.DB_NAME + " sslmode=prefer")
