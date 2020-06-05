@@ -1,0 +1,8 @@
+Taxon_fasta_file_name,ORF_name,Taxon_name,NCBI_taxon_id
+metagenome.fasta,contig_1,Flavobacteria bacterium BBFL7,156586
+metagenome.fasta,contig_2,Planctomycetaceae bacterium KSU-1,247490
+metagenome.fasta,contig_3,Synechococcus sp. CB0101,232348
+metagenome.fasta,contig_4,SAR116 cluster alpha proteobacterium sp. HIMB100,281031
+metagenome.fasta,contig_5,Synechococcus sp. PCC 7336,195250
+metagenome.fasta,contig_6,Synechococcus sp. CB0101,232348
+metagenome.fasta,contig_7,Planctomycetaceae bacterium KSU-1,247490

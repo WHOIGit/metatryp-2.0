@@ -1,0 +1,6 @@
+Taxon_fasta_file_name,ORF_name,Taxon_name,Group,Kingdom,Phylum,Class,Order,Family,Genus,Species
+metagenome.fasta,contig_1,Flavobacteria bacterium BBFL7,cellular organisms,Bacteria,Bacteroidetes,Flavobacteriia,Unclassified Flavobacteriia,Unclassified Flavobacteriia,Unclassified Flavobacteriia,Unclassified Flavobacteriia
+metagenome.fasta,contig_2,Planctomycetaceae bacterium KSU-1,cellular organisms,Bacteria,Planctomycetes,Planctomycetia,Candidatus Brocadiales,Candidatus Brocadiaceae,Candidatus Jettenia,Unclassified Candidatus Jettenia
+metagenome.fasta,contig_3,Synechococcus sp. CB0101,cellular organisms,Bacteria,Cyanobacteria,Unclassified Cyanobacteria,Synechococcales,Synechococcaceae,Synechococcus,Unclassified Synechococcus
+metagenome.fasta,contig_4,SAR116 cluster alpha proteobacterium sp. HIMB100,cellular organisms,Bacteria,Proteobacteria,Alphaproteobacteria,Unclassified Alphaproteobacteria,Unclassified Alphaproteobacteria,Unclassified Alphaproteobacteria,Unclassified Alphaproteobacteria
+metagenome.fasta,contig_5,Synechococcus sp. PCC 7336,cellular organisms,Bacteria,Cyanobacteria,Unclassified Cyanobacteria,Synechococcales,Synechococcaceae,Synechococcus,Unclassified Synechococcus
