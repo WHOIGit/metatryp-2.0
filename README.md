@@ -1,124 +1,38 @@
-Saito Lab: METATRYP 2.0 Proteomics Toolkit
-==============
-NOTE: This documentation is currently in progress and is incomplete.
-
-This repository contains a set of computational tools for analyzing proteomics data.
-
-It is revised and expanded from METATRYP 1.0 found here: https://github.com/saitomics/metatryp
-
-METARYP 2.0 now supports the ingestion and search of Genomes, Metagenomes and Metagenome Assembled Genomes (MAGs).  This reposititory is designed both to be used as a stand alone application and in support of the Ocean Protein Portal (https://proteinportal.whoi.edu).
-
-## General System Description
-
-These tools are intended to help researchers answer questions about proteomics data. 
+# METATRYP v. 2.0 Documentation
+These tools are intended to help researchers answer questions about proteomics data. Written in Python 3.6 on a Unix operating system (linux/macOS).
 
 Some specific questions that these tools help provide answers for include:
 
-- Is tryptic peptide XXX found in Proteome A and Proteome B?
-- How many tryptic peptides do Proteome A and Proteome B have in common?
-- Are tryptic peptides XXX and YYY both found in Proteome A?
-- How many tryptic peptides are there in Proteome A that differ from peptide XXX by n positions?
+* Is tryptic peptide XXX found in Proteome A and Proteome B?
+* How many tryptic peptides do Proteome A and Proteome B have in common?
+* Are tryptic peptides XXX and YYY both found in Proteome A?
+* How many tryptic peptides are there in Proteome A that differ from peptide XXX by n positions?
+* What is the Lowest Common Ancestor of taxa containing peptide XXX?
 
-The analysis tools consist of:
+METATRYP v. 2.0 has faster performance and higher throughput than [METATRYP v. 1.0](https://github.com/saitomics/metatryp) which it is based upon. A web server instance of METATRYP v. 2.0 using a marine microbe database can be found at [https://metatryp.whoi.edu/](https://metatryp.whoi.edu/), and a web instance using a coronavirus focused database can be found at [https://metatryp-coronavirus.whoi.edu/](https://metatryp-coronavirus.whoi.edu/).
 
-1): a database, stored in a PostgreSQL database.  
-2): python libraries, for processing, ingesting, and analyzing data 
-3): command-line scripts, to act as interfaces to the python libraries and the database.
+METARYP 2.0 now supports the ingestion and search of Genomes, Metagenomes and Metagenome Assembled Genomes (MAGs) and calculation of the Least Common Ancestor (LCA) for each peptide. This repository is designed both to be used as a stand-alone application and in support of the Ocean Protein Portal (https://proteinportal.whoi.edu).
 
-## Installation
+The METATRYP software consists of:
+1. a database, stored in a standalone postgreSQL database.
+2. python libraries, for processing, ingesting, and analyzing data. 
+3. command-line scripts, to act as interfaces to the python libraries and the database.
+***
+* [Installation Instructions](https://github.com/WHOIGit/metatryp-2.0/wiki/Installation-Instructions)
+    * [Download](https://github.com/WHOIGit/metatryp-2.0/wiki/Installation-Instructions#1-download-this-repository)
+    * [Create virtual environment](https://github.com/WHOIGit/metatryp-2.0/wiki/Installation-Instructions#2-create-a-virtual-environment)
+     [Setup PostgreSQL database](https://github.com/WHOIGit/metatryp-2.0/wiki/Installation-Instructions#3-setup-postgresql-to-build-database-from-scratch)
+    * [Add METATRYP Schema to empty database](https://github.com/WHOIGit/metatryp-2.0/wiki/Installation-Instructions#4-add-metatryp--schema-to-the-empty-database)
+    * [Run tests](https://github.com/WHOIGit/metatryp-2.0/wiki/Installation-Instructions#5-run-tests)
+* [Quick Usage Guide](https://github.com/WHOIGit/metatryp-2.0/wiki/Quick-Usage-Guide)
+    * [Digest and ingest data](https://github.com/WHOIGit/metatryp-2.0/wiki/Quick-Usage-Guide#1-digest-and-ingest-data)
+    * [Query a data category for a peptide](https://github.com/WHOIGit/metatryp-2.0/wiki/Quick-Usage-Guide#2-query-a-data-category-for-a-peptide)
+    * [List taxa ids](https://github.com/WHOIGit/metatryp-2.0/wiki/Quick-Usage-Guide#3-list-the-taxon-ids)
+    * [Generate redundancy tables](https://github.com/WHOIGit/metatryp-2.0/wiki/Quick-Usage-Guide#4-generate-redundancy-tables)
+    * [Remove taxa from database](https://github.com/WHOIGit/metatryp-2.0/wiki/Quick-Usage-Guide#5-remove-taxa-from-the-database)
+* [Tutorial](https://github.com/WHOIGit/metatryp-2.0/wiki/Tutorial)
+    * [Taxa in Tutorial Database](https://github.com/WHOIGit/metatryp-2.0/wiki/Tutorial/_edit#taxa-in-the-pre-built-tutorial-database)
+***
+When using METATRYP v. 2.0 please cite the following:
 
-These instructions assume that you are running within a unix environment that has python3.X and PostgreSQL installed. Anaconda or Miniconda also needs to be installed on the system.
-
-1. Download this Repository: https://github.com/WHOIGit/metatryp-2.0/archive/master.zip
-2. Unpack the Repository into a folder: Unzip it.
-3. Navigate to the root of the unpacked folder and update conf/db_config.py to fill in the missing database connection information.  These settings will vary from system to system.
-    The fields that need to be populated are DB_NAME, DB_Pass and DB_USER
-4. Create a virtual environment: Navigate into the unzipped directory you created above. It should contain this README.md file. Then run this command: conda env create -f environment.yml . This will create a new conda virtual environment directory named 'metatryp2_env'.
-5. Activate the environment: conda activate metatryp2_env
-
-Further instructions to follow.
-
-## Quick Usage Guide
-
-### 1: Digest and ingest genomic data
-1. Run the script bin/digest_and_ingest.sh with FASTA proteome files you wish to digest and ingest. e.g.:
-````
-bin/digest_and_ingest.sh file1.fasta file2.fasta ...
-````
-
-This script reads the FASTA files, and runs digestions on their sequences. You should see a fair amount of output as these files are processed.
-
-
-### 2.  Query sequences for taxon matches:
-You can query the database for exact and fuzzy matches*. e.g.:
-````
-bin/query_by_sequence.sh --sequence MGFPCNR --max-distance 1
-````
-*fuzzy matches is currently not working
-
-You can query by other types such as metagenomes or specialized assemblies by using the --type parameter
-
-For example:
-````
-bin/query_by_sequence.sh --sequence LSHQAIAEAIGSTR --type sa
-````
-will query for Specialized Assemblies such as MAGs.
-
-````
-bin/query_by_sequence.sh --sequence MGFPCNR --type all
-````
-will query across genomes, metagenomes and specialized assemblies
-
---type parameters (default is genomes)
-
-g - genomes
-
-m - meta
-
-sa - specialized assemblies
-
-all - all types
-
-### 3: Generate redundancy tables for genomes
-1.: See available taxon ids by querying DB: e.g. 
-````
-bin/list_taxon_ids.sh
-````
-2.: Generate redundancy tables for groups of taxons e.g.
-````
-bin/generate_redundancy_tables.sh --taxon-ids syn8102 syn7502 syn7503 --output-dir exampleRedundancyTables
-````
-
-Note that you can also specify a file that contains a list of taxon IDs, e.g
-
-````
-bin/generate_redundancy_tables.sh --taxon-id-file taxon_id_list.txt --output-dir exampleRedundancyTables
-````
-
-3.: View resulting files in exampleRedundancyTables
-    - counts.csv contains counts of redundant peptides
-    - percents.csv contains the values in counts.csv, divided by the number of unique peptides in the *union* of digestions of a taxa pair.
-
-### 4: Generate redundancy tables for Specialized Assemblies (i.e. MAGs)
-1.: See available specialized assemblies by querying DB: e.g. 
-````
-bin/list_specialized_assemblies.sh
-````
-2.: Generate redundancy tables for groups of specialized assemblies e.g.
-````
-bin/generate_redundancy_tables_specialized_assembly.sh --sa-ids TARA_RED_MAG_00113 TARA_SOC_MAG_00005 --output-dir exampleRedundancyTables
-````
-
-Note that you can also specify a file that contains a list of specialized assembly IDs, e.g
-
-````
-bin/generate_redundancy_tables_specialized_assembly.sh --sa-id-file sa_id_list.txt --output-dir exampleRedundancyTables
-````
-
-3.: View resulting files in exampleRedundancyTables
-    - counts.csv contains counts of redundant peptides
-    - percents.csv contains the values in counts.csv, divided by the number of unique peptides in the *union* of digestions of a specialized assembly pair.
-
-````
-
-
+[Saunders, J. K., Gaylord, D., Held, N., Symmonds, N., et al., METATRYP v 2.0: Metaproteomic Least Common Ancestor Analysis for Taxonomic Inference Using Specialized Sequence Assemblies - Standalone Software and Web Servers for Marine Microorganisms and Coronaviruses. bioRxiv 2020, 2020.2005.2020.107490.](https://www.biorxiv.org/content/10.1101/2020.05.20.107490v1)
