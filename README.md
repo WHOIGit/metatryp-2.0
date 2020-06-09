@@ -25,7 +25,6 @@ The METATRYP software consists of:
     * [Create virtual environment](https://github.com/WHOIGit/metatryp-2.0/wiki/Installation-Instructions#2-create-a-virtual-environment)
     * [Setup PostgreSQL database](https://github.com/WHOIGit/metatryp-2.0/wiki/Installation-Instructions#3-setup-postgresql-to-build-database-from-scratch)
     * [Add METATRYP Schema to empty database](https://github.com/WHOIGit/metatryp-2.0/wiki/Installation-Instructions#4-add-metatryp--schema-to-the-empty-database)
-    * [Run tests](https://github.com/WHOIGit/metatryp-2.0/wiki/Installation-Instructions#5-run-tests)
 * [Quick Usage Guide](https://github.com/WHOIGit/metatryp-2.0/wiki/Quick-Usage-Guide)
     * [Digest and ingest data](https://github.com/WHOIGit/metatryp-2.0/wiki/Quick-Usage-Guide#1-digest-and-ingest-data)
     * [Query a data category for a peptide](https://github.com/WHOIGit/metatryp-2.0/wiki/Quick-Usage-Guide#2-query-a-data-category-for-a-peptide)
