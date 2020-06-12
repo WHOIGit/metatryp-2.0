@@ -1,1 +1,91 @@
-from proteomics import dbimport loggingimport csvimport osimport argparseimport timedef main():    """    Process arguments.    """    argparser = argparse.ArgumentParser(description=(        'Update taxon lineage from CSV file.'))    argparser.add_argument('--filepath', help=(        'CSV file containing taxon lineage'))    start_time = time.time()    logger = logging.getLogger('update_taxons')    logger.addHandler(logging.StreamHandler())    logger.setLevel(logging.INFO)    args = argparser.parse_args()    if args.filepath:        filename = args.filepath        print(filename)        with open(filename, 'rt') as f:            reader = csv.reader(f)            try:                count = 1;                for row in reader:                    if count > 1:                        cur = db.get_psycopg2_cursor()                        genome_id = row[0]                       # taxon_name = row[1]                        taxon_oid = row[1]                        if not taxon_oid:                            taxon_oid = None                        taxon_status = row[2]                        taxon_study = row[3]                        genome_name = row[4]                        sequencing_center = row[5]                        img_genome_id = row[6]                        if not img_genome_id:                            img_genome_id = None                        genome_size = row[7]                        if not genome_size:                            genome_size = None                        genome_count=row[8]                        if not genome_count:                            genome_count = None                        print("Genome ID", genome_id)                        hierachy = row[9]                        ncbi_id = row[10]                        ncbi_url = row[11]                        img_url = row[12]                        tax_group = row[13]                        tax_kingdom = row[14]                        tax_phylum = row[15]                        tax_class = row[16]                        tax_order = row[17]                        tax_family = row[18]                        tax_genus = row[19]                        tax_species = row[20].replace(".", "")                        ncbi_taxon_name = row[21]                        #check to see if taxon file matching the fasta file key is in database                        # s = "."                        # seq = (tax_group, tax_kingdom, tax_phylum, tax_class, tax_order, tax_family, tax_genus, tax_species)                        # hierachy = s.join(seq)                        # hierachy = hierachy.replace(" ", "_")                        # hierachy = hierachy.replace("-", "_")                        # hierachy = hierachy.replace("+", "_")                        # hierachy = hierachy.replace("(", "_")                        # hierachy = hierachy.replace(")", "_")                        # hierachy = hierachy.replace("/", "_")                        # hierachy = hierachy.replace("=", "")                        # hierachy = hierachy.replace("[", "")                        # hierachy = hierachy.replace("]", "")                        # hierachy = hierachy.replace("'", "")                        # hierachy = hierachy.replace("'", "")                        print(hierachy)                       # ncbi_url = "http://www.ncbi.nlm.nih.gov/Taxonomy/Browser/wwwtax.cgi?id=" + ncbi_id                        print("URL: ", ncbi_url)                        cur = db.get_psycopg2_cursor()                        cur.execute(                            "update taxon set ncbi_id = %s,tax_oid=%s, status=%s, study_name=%s, genome_name=%s, sequencing_center=%s,"                            "img_genome_id=%s, genome_size=%s, gene_count=%s, tax_group = %s, tax_domain = %s, tax_phylum = %s, tax_class = %s, "                            "tax_order = %s, tax_family = %s, tax_genus = %s, tax_species = %s, hierachy = %s, img_url = %s, ncbi_url = %s where id=%s",                            (                                ncbi_id, taxon_oid, taxon_status, taxon_study, genome_name, sequencing_center,                                img_genome_id, genome_size, genome_count, tax_group, tax_kingdom, tax_phylum, tax_class, tax_order, tax_family,                                tax_genus, tax_species, hierachy, img_url, ncbi_url, genome_id))                        db.psycopg2_connection.commit()                    count = count + 1            except csv.Error as e:               logger.error('file %s, line %d: %s' % (filename, reader.line_num, e))if __name__ == '__main__':    main()
+from proteomics import db
+import logging
+
+import csv
+import os
+import argparse
+import time
+def main():
+    """
+    Process arguments.
+    """
+    argparser = argparse.ArgumentParser(description=(
+        'Update taxon lineage from CSV file.'))
+    argparser.add_argument('--filepath', help=(
+        'CSV file containing taxon lineage'))
+
+    start_time = time.time()
+    logger = logging.getLogger('update_taxons')
+    logger.addHandler(logging.StreamHandler())
+    logger.setLevel(logging.INFO)
+
+    args = argparser.parse_args()
+
+    if args.filepath:
+        filename = args.filepath
+        print(filename)
+
+        with open(filename, 'rt') as f:
+            reader = csv.reader(f)
+            try:
+                count = 1;
+                for row in reader:
+                    if count > 1:
+                        cur = db.get_psycopg2_cursor()
+
+                        fasta_file_name = row[0]
+                        genome_id = os.path.splitext(os.path.basename(fasta_file_name))[0]
+                        taxon_name = row[1]
+                        print("Genome ID", genome_id)
+                        ncbi_id = row[2]
+                        tax_group = row[3]
+                        tax_kingdom = row[4]
+                        tax_phylum = row[5]
+                        tax_class = row[6]
+                        tax_order = row[7]
+                        tax_family = row[8]
+                        tax_genus = row[9]
+                        tax_species = row[10].replace(".","")
+                        ncbi_taxon_name= row[11]
+
+                        #check to see if taxon file matching the fasta file key is in database
+                        s = "."
+                        seq = (tax_group, tax_kingdom, tax_phylum,tax_class, tax_order, tax_family, tax_genus,tax_species)
+                        hierachy = s.join(seq)
+                        hierachy = hierachy.replace(" ", "_")
+                        hierachy = hierachy.replace("-", "_")
+                        hierachy = hierachy.replace("(", "_")
+                        hierachy = hierachy.replace(")", "_")
+                        hierachy = hierachy.replace("[", "")
+                        hierachy = hierachy.replace("]", "")
+                        hierachy = hierachy.replace("'", "")
+                        hierachy = hierachy.replace("'", "")
+                        hierachy = hierachy.replace("..", ".")
+                        hierachy = hierachy.replace(":", ".")
+                        if hierachy.endswith("."):
+                            hierachy = hierachy[:-1]
+
+
+                        ncbi_url = "http://www.ncbi.nlm.nih.gov/Taxonomy/Browser/wwwtax.cgi?id=" + ncbi_id
+                        print("URL: ", ncbi_url)
+                        cur = db.get_psycopg2_cursor()
+
+
+                        cur.execute(
+                            "update taxon set ncbi_id = %s, genome_name=%s, tax_group = %s, tax_domain = %s, tax_phylum = %s, tax_class = %s, "
+                            "tax_order = %s, tax_family = %s, tax_genus = %s, tax_species = %s, hierachy = %s, ncbi_url = %s where id=%s",
+                            (
+                                ncbi_id, taxon_name, tax_group, tax_kingdom, tax_phylum, tax_class, tax_order, tax_family,
+                                tax_genus, tax_species, hierachy, ncbi_url, genome_id))
+                        db.psycopg2_connection.commit()
+
+                    count = count + 1
+
+            except csv.Error as e:
+               logger.error('file %s, line %d: %s' % (filename, reader.line_num, e))
+
+
+if __name__ == '__main__':
+
+    main()
+
