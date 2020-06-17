@@ -31,7 +31,7 @@ The METATRYP software consists of:
     * [List taxa ids](https://github.com/WHOIGit/metatryp-2.0/wiki/Quick-Usage-Guide#3-list-the-taxon-ids)
     * [Generate redundancy tables](https://github.com/WHOIGit/metatryp-2.0/wiki/Quick-Usage-Guide#4-generate-redundancy-tables)
     * [Remove taxa from database](https://github.com/WHOIGit/metatryp-2.0/wiki/Quick-Usage-Guide#5-remove-taxa-from-the-database)
-    * [Least Common Ancestor Analysis](https://github.com/WHOIGit/metatryp-2.0/wiki/Quick-Usage-Guide#6-least-common-ancestor-calculation)
+    * [Taxonomic Lineages: Least Common Ancestor Analysis](https://github.com/WHOIGit/metatryp-2.0/wiki/Quick-Usage-Guide#6-least-common-ancestor-calculation)
 * [Tutorial](https://github.com/WHOIGit/metatryp-2.0/wiki/Tutorial)
     * [Taxa in Tutorial Database](https://github.com/WHOIGit/metatryp-2.0/wiki/Tutorial/_edit#taxa-in-the-pre-built-tutorial-database)
 ***
