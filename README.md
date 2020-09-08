@@ -1,8 +1,6 @@
 # METATRYP v. 2.0 Documentation
 These tools are intended to help researchers answer questions about proteomics data. Written in Python 3.6 on a Unix operating system (linux/macOS).
 
-**WARNING: This documenation is under active development and is subject to change at this time.**
-
 Some specific questions that these tools help provide answers for include:
 
 * Is tryptic peptide XXX found in Proteome A and Proteome B?
