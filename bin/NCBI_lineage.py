@@ -34,7 +34,7 @@ for m in mandatories:
 
 #Opens the blast output info file and the new output file
 taxaParse = os.path.abspath(options.taxaID_file)
-df = pd.read_csv(taxaParse)
+df = pd.read_csv(taxaParse, low_memory=False)
 
 if options.out_name is None:
     outputFileName = "NCBI_taxonomic_lineage.csv"
@@ -189,12 +189,13 @@ while taxonEntry < totalTaxa:
         taxaLineageDict[str(taxonKey)] = ["Unknown"] * 9
         taxonEntry += 1
 
+taxaLineageDict[str('-1')] = ["Unknown"] * 9
 #Create dictionary where the NCBI taxonomy ID = key; lineage = values
 allKeys = taxaLineageDict.keys()
 
 if len(lineageDoesNotExist) > 0:
     print("The following taxon IDs were not found in the NCBI Taxonomy database API:")
-    print(lineageDoesNotExist)
+    print(list(set(lineageDoesNotExist)))
 
 
 #Convert dictionary of lineages to dataframe and merge with input file info
@@ -202,8 +203,9 @@ df_lineage = pd.DataFrame.from_dict(taxaLineageDict, orient='index', columns= \
                                     ["Group","Kingdom","Phylum", \
                                      "Class","Order","Family","Genus","Species","NCBI_taxon_name"])
 df_lineage['NCBI_taxon_id'] = df_lineage.index
-df_lineage['NCBI_taxon_id'] = df_lineage['NCBI_taxon_id'].astype('int64')
-df_out = pd.merge(df, df_lineage, how='left')
+df_lineage['NCBI_taxon_id'] = df_lineage['NCBI_taxon_id'].astype(str)
+df['NCBI_taxon_id'] = df['NCBI_taxon_id'].astype(str)
+df_out = pd.merge(df, df_lineage, how='left', on='NCBI_taxon_id')
 
 
 df_out.to_csv(outputFileName, index=False)
