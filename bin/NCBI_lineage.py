@@ -208,7 +208,7 @@ df['NCBI_taxon_id'] = df['NCBI_taxon_id'].astype(str)
 df_out = pd.merge(df, df_lineage, how='left', on='NCBI_taxon_id')
 
 
-df_out.to_csv(outputFileName, index=False)
+df_out.to_csv(outputFileName, index=False, encoding='utf-8')
 
 #Remove temp xml lineage file from NCBI
 os.remove("NCBI_taxon_temp.xml")
