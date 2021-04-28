@@ -52,21 +52,9 @@ Entrez.email = email_api
 #Pull taxonomy information and output as xml file
 handle = Entrez.efetch(db="taxonomy", id=stringTaxaID, format="xml")
 
-#Create a new file to store all parsed taxonomic lineage information
-taxaKeysInfo = open("NCBI_taxon_temp.xml", "w")
-
-#Read the XML output... need to create a new xml file, as the xml parsing package ElementTree requires in in a file
-###This might be an unnecessary step
-readXMLFile = handle.readlines()
-
-for line in readXMLFile:
-    taxaKeysInfo.write(line)
-
-taxaKeysInfo.close()
-
 #Use ElementTree to read XML and parse desired information
 ### The Entrez package has an xml parser, but not sure how flexible it is... 
-tree = ET.parse("NCBI_taxon_temp.xml") #temp file will be deleted at end of program
+tree = ET.parse(handle) #no longer writing to temp file
 root = tree.getroot()
 
 #Create a file which will store all the parsed taxonomy info
@@ -210,5 +198,3 @@ df_out = pd.merge(df, df_lineage, how='left', on='NCBI_taxon_id')
 
 df_out.to_csv(outputFileName, index=False, encoding='utf-8')
 
-#Remove temp xml lineage file from NCBI
-os.remove("NCBI_taxon_temp.xml")
