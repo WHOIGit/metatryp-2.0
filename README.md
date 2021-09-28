@@ -1,8 +1,6 @@
 # METATRYP v. 2.0 Documentation
 These tools are intended to help researchers answer questions about proteomics data. Written in Python 3.6 on a Unix operating system (linux/macOS).
 
-**WARNING: This documenation is under active development and is subject to change at this time.**
-
 Some specific questions that these tools help provide answers for include:
 
 * Is tryptic peptide XXX found in Proteome A and Proteome B?
@@ -37,4 +35,6 @@ The METATRYP software consists of:
 ***
 When using METATRYP v. 2.0 please cite the following:
 
-[Saunders, J. K., Gaylord, D., Held, N., Symmonds, N., et al., METATRYP v 2.0: Metaproteomic Least Common Ancestor Analysis for Taxonomic Inference Using Specialized Sequence Assemblies - Standalone Software and Web Servers for Marine Microorganisms and Coronaviruses. bioRxiv 2020, 2020.2005.2020.107490.](https://www.biorxiv.org/content/10.1101/2020.05.20.107490v1)
+[Jaclyn K. Saunders, David A. Gaylord, Noelle A. Held, Nicholas Symmonds, Christopher L. Dupont, Adam Shepherd, Danie B. Kinkade, and Mak A. Saito
+Journal of Proteome Research 2020 19 (11), 4718-4729
+DOI: 10.1021/acs.jproteome.0c00385.](https://pubs.acs.org/doi/10.1021/acs.jproteome.0c00385)

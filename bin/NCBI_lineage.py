@@ -34,7 +34,7 @@ for m in mandatories:
 
 #Opens the blast output info file and the new output file
 taxaParse = os.path.abspath(options.taxaID_file)
-df = pd.read_csv(taxaParse)
+df = pd.read_csv(taxaParse, low_memory=False)
 
 if options.out_name is None:
     outputFileName = "NCBI_taxonomic_lineage.csv"
@@ -52,21 +52,9 @@ Entrez.email = email_api
 #Pull taxonomy information and output as xml file
 handle = Entrez.efetch(db="taxonomy", id=stringTaxaID, format="xml")
 
-#Create a new file to store all parsed taxonomic lineage information
-taxaKeysInfo = open("NCBI_taxon_temp.xml", "w")
-
-#Read the XML output... need to create a new xml file, as the xml parsing package ElementTree requires in in a file
-###This might be an unnecessary step
-readXMLFile = handle.readlines()
-
-for line in readXMLFile:
-    taxaKeysInfo.write(line)
-
-taxaKeysInfo.close()
-
 #Use ElementTree to read XML and parse desired information
 ### The Entrez package has an xml parser, but not sure how flexible it is... 
-tree = ET.parse("NCBI_taxon_temp.xml") #temp file will be deleted at end of program
+tree = ET.parse(handle) #no longer writing to temp file
 root = tree.getroot()
 
 #Create a file which will store all the parsed taxonomy info
@@ -189,12 +177,13 @@ while taxonEntry < totalTaxa:
         taxaLineageDict[str(taxonKey)] = ["Unknown"] * 9
         taxonEntry += 1
 
+taxaLineageDict[str('-1')] = ["Unknown"] * 9
 #Create dictionary where the NCBI taxonomy ID = key; lineage = values
 allKeys = taxaLineageDict.keys()
 
 if len(lineageDoesNotExist) > 0:
     print("The following taxon IDs were not found in the NCBI Taxonomy database API:")
-    print(lineageDoesNotExist)
+    print(list(set(lineageDoesNotExist)))
 
 
 #Convert dictionary of lineages to dataframe and merge with input file info
@@ -202,11 +191,10 @@ df_lineage = pd.DataFrame.from_dict(taxaLineageDict, orient='index', columns= \
                                     ["Group","Kingdom","Phylum", \
                                      "Class","Order","Family","Genus","Species","NCBI_taxon_name"])
 df_lineage['NCBI_taxon_id'] = df_lineage.index
-df_lineage['NCBI_taxon_id'] = df_lineage['NCBI_taxon_id'].astype('int64')
-df_out = pd.merge(df, df_lineage, how='left')
+df_lineage['NCBI_taxon_id'] = df_lineage['NCBI_taxon_id'].astype(str)
+df['NCBI_taxon_id'] = df['NCBI_taxon_id'].astype(str)
+df_out = pd.merge(df, df_lineage, how='left', on='NCBI_taxon_id')
 
 
-df_out.to_csv(outputFileName, index=False)
+df_out.to_csv(outputFileName, index=False, encoding='utf-8')
 
-#Remove temp xml lineage file from NCBI
-os.remove("NCBI_taxon_temp.xml")
